@@ -5,10 +5,11 @@ import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { Send, Bot, User, Sparkles } from 'lucide-react'
+import { Send, Bot, User, Sparkles, RotateCcw } from 'lucide-react'
 
 export default function ChatPage() {
   const [input, setInput] = useState('')
+  const [showModeSelector, setShowModeSelector] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   
@@ -43,13 +44,28 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="flex items-center justify-center gap-2 border-b border-border px-4 py-4">
+      <header className="flex items-center justify-between border-b border-border px-4 py-4">
+        <div className="w-10" /> {/* Spacer for centering */}
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
             <Sparkles className="h-4 w-4 text-primary-foreground" />
           </div>
           <h1 className="text-lg font-semibold text-foreground">Negotiation Coach</h1>
         </div>
+        {messages.length > 0 ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowModeSelector(true)}
+            title="Switch Mode"
+            className="h-10 w-10"
+          >
+            <RotateCcw className="h-5 w-5" />
+            <span className="sr-only">Switch Mode</span>
+          </Button>
+        ) : (
+          <div className="w-10" /> 
+        )}
       </header>
 
       {/* Messages */}
@@ -165,6 +181,44 @@ Please explain each concept briefly so I can use this framework during the scena
                       <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:-0.15s]" />
                       <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" />
                     </div>
+                  </div>
+                </div>
+              )}
+              {/* Inline Mode Selector */}
+              {showModeSelector && (
+                <div className="flex flex-col items-center py-6 border-t border-border mt-4">
+                  <p className="text-sm text-muted-foreground mb-4">Choose what you&apos;d like to do next:</p>
+                  <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md justify-center">
+                    <Button
+                      variant="default"
+                      className="h-auto py-3 px-5 flex-1"
+                      onClick={() => {
+                        setShowModeSelector(false)
+                        sendMessage({ 
+                          text: `Let's start (or continue) the negotiation scenario. I am Skylar, a final-year undergraduate student working under Professor Pablo. Please continue as Professor Pablo and engage in the negotiation with me.`
+                        })
+                      }}
+                    >
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="font-semibold text-sm">Start/Continue Scenario</span>
+                        <span className="text-xs opacity-80">Negotiate with Professor Pablo</span>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-auto py-3 px-5 flex-1"
+                      onClick={() => {
+                        setShowModeSelector(false)
+                        sendMessage({ 
+                          text: `Please review the key negotiation concepts with me. Explain the 7 elements: Interests, Options, Alternatives (BATNA), Legitimacy, Communication, Relationship, and Commitment.`
+                        })
+                      }}
+                    >
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="font-semibold text-sm">Review Concepts</span>
+                        <span className="text-xs opacity-80">Learn negotiation strategies</span>
+                      </div>
+                    </Button>
                   </div>
                 </div>
               )}
