@@ -61,47 +61,53 @@ export default function ChatPage() {
                 <Bot className="h-8 w-8 text-muted-foreground" />
               </div>
               <h2 className="text-xl font-semibold text-foreground mb-2">
-                Welcome to Negotiation Coach
+                Welcome to Negotiation Coach!
               </h2>
-              <p className="text-muted-foreground max-w-md mb-8">
-                Ready to sharpen your negotiation skills? Let&apos;s practice with a case study or explore strategies together.
+              <p className="text-muted-foreground max-w-lg mb-8">
+                Sharpen your negotiation skills by practicing a real-world scenario or reviewing key concepts first. You can choose:
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
+              <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg justify-center">
                 <Button
-                  variant="outline"
-                  className="h-auto py-3 px-4 justify-start text-left"
+                  variant="default"
+                  className="h-auto py-4 px-6 flex-1 max-w-xs"
                   onClick={() => {
-                    sendMessage({ text: 'Simulate a negotiation scenario' })
+                    sendMessage({ 
+                      text: `You are Skylar, a final-year undergraduate student working under Professor Pablo. Over the past eight months, you have contributed to a research project. Your supervisor now proposes pivoting the research to a new field, which may delay your graduation and affect your preferred research direction. At the same time, you have personal and academic constraints, including upcoming exams and family responsibilities.
+
+Your task is to negotiate strategically with Professor Pablo, balancing your priorities, constraints, and the relationship while exploring options for a mutually acceptable outcome. Focus on communicating clearly, exploring options, and managing trade-offs. Your success depends not only on the outcome, but on how effectively you navigate competing priorities and maintain a positive professional relationship.
+
+Please start the negotiation scenario now. Professor Pablo, please begin the conversation.`
+                    })
                   }}
                 >
-                  <span className="text-sm">Simulate a negotiation scenario</span>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="font-semibold">Start Scenario</span>
+                    <span className="text-xs opacity-80">Begin the Skylar negotiation case</span>
+                  </div>
                 </Button>
                 <Button
                   variant="outline"
-                  className="h-auto py-3 px-4 justify-start text-left"
+                  className="h-auto py-4 px-6 flex-1 max-w-xs"
                   onClick={() => {
-                    sendMessage({ text: 'Review my positions & interests' })
+                    sendMessage({ 
+                      text: `Before starting the negotiation, please give me a quick breakdown of key negotiation concepts to guide my strategy. Cover the following 7 elements:
+
+1. **Interests** – Understanding goals and priorities
+2. **Options** – Brainstorming possible solutions
+3. **Alternatives (BATNA)** – Best alternatives if negotiation fails
+4. **Legitimacy** – Fair standards, precedents, or objective criteria
+5. **Communication** – Expressing needs clearly and listening actively
+6. **Relationship** – Maintaining trust and positive rapport
+7. **Commitment** – Working toward mutually acceptable agreements
+
+Please explain each concept briefly so I can use this framework during the scenario.`
+                    })
                   }}
                 >
-                  <span className="text-sm">Review my positions & interests</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto py-3 px-4 justify-start text-left"
-                  onClick={() => {
-                    sendMessage({ text: 'Generate counteroffers' })
-                  }}
-                >
-                  <span className="text-sm">Generate counteroffers</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto py-3 px-4 justify-start text-left"
-                  onClick={() => {
-                    sendMessage({ text: 'Explain negotiation strategies (7-step method)' })
-                  }}
-                >
-                  <span className="text-sm">Explain negotiation strategies (7-step method)</span>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="font-semibold">Review Concepts</span>
+                    <span className="text-xs opacity-80">Learn negotiation strategies first</span>
+                  </div>
                 </Button>
               </div>
             </div>
