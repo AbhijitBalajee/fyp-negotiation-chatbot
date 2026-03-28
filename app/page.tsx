@@ -10,6 +10,7 @@ import { Send, Bot, User, Sparkles, RotateCcw } from 'lucide-react'
 export default function ChatPage() {
   const [input, setInput] = useState('')
   const [showModeSelector, setShowModeSelector] = useState(false)
+  const [showRoleSheet, setShowRoleSheet] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   
@@ -41,8 +42,82 @@ export default function ChatPage() {
     }
   }
 
+  const startScenario = () => {
+    setShowRoleSheet(false)
+    sendMessage({ 
+      text: `I have read the confidential role sheet for Skylar. I am ready to begin the negotiation scenario. Please start as Professor Pablo and initiate the conversation about pivoting the research direction.`
+    })
+  }
+
   return (
     <div className="flex flex-col h-screen bg-background">
+      {/* Role Sheet Modal */}
+      {showRoleSheet && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-background rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 sm:p-8">
+              <div className="text-center mb-6">
+                <h2 className="text-lg font-bold text-foreground uppercase tracking-wide">
+                  Confidential Role Sheet - Skylar (Student)
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">National University of Singapore</p>
+                <p className="text-xs text-muted-foreground italic mt-1">For Role-Playing Purpose Only</p>
+              </div>
+              
+              <div className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-4">
+                <p>
+                  You are taking on the role of a final-year undergraduate student in a negotiation with your academic supervisor. Your task is to engage in a conversation to determine the direction and scope of your research project, while balancing your academic goals, personal circumstances and future aspirations.
+                </p>
+                
+                <p>
+                  <strong>Skylar</strong> is a final-year undergraduate enrolled in National University of Singapore and a recipient of the prestigious Presidential Scholarship. Over the past eight months, you have been working closely with <strong>Professor Pablo</strong> on a research study within a specialised domain of your field. The project is currently at a critical midpoint, with most of the foundational research already completed and preliminary findings conducted. You have invested significant time and intellectual effort into the project and its direction aligns closely with your long-term ambition to pursue postgraduate research.
+                </p>
+                
+                <p>
+                  However, beyond academic commitments, you are overwhelmed with a particularly demanding schedule. Final examinations are approaching, and you are concurrently managing family-related obligations that have begun to take up time and emotional capacity. Over the past month, your mother has been diagnosed with Stage Four cancer. As the sole caregiver in a single-parent household, you now find yourself juggling hospital visits, financial responsibilities and emotional strain alongside your academic workload. While you have tried to make steady progress on your research, you are increasingly aware of the need to prioritise completing the research to ensure you are able to graduate on time.
+                </p>
+                
+                <p>
+                  <strong>Professor Pablo</strong>, your professor, is a well-established expert in his field with a growing research group and a strong publication record. He has been supporting you closely in your research. However, Professor Pablo has proposed to you to pivot your research focus towards a newer and more promising area. While this shift could potentially lead to a more impactful outcome, it also means revisiting earlier work, redefining its scope and potentially extending the timeline required for completion. From your perspective, this proposal introduces a lot of uncertainty. A sudden shift at this stage may increase your workload, delay your graduation and move you away from the research direction you are genuinely interested in pursuing.
+                </p>
+                
+                <p>
+                  At the same time, you recognise that Professor Pablo plays a critical role in your academic future. His evaluation will directly influence your final grade and his recommendation will be essential for postgraduate applications. Maintaining a positive working relationship is therefore an important consideration.
+                </p>
+                
+                <p>
+                  While you could explore alternatives such as requesting to retain the current scope, researching on a scaled-down version or in more extreme cases, seeking a different supervisor, these options come with risks. Another alternative you have in mind is <strong>Professor Lambert</strong>, who is also a leading figure, but in a field different from your research scope, and he may not be available or willing to take on another student at such a late stage given his tight schedule. Furthermore, changing professors could disrupt continuity and weaken the strength of future recommendations.
+                </p>
+                
+                <p>
+                  The situation has now reached a turning point where both parties must decide how to move forward. You must determine how to respond to the proposed change in direction and how to balance competing priorities under time pressure and uncertainty. As you enter this negotiation, consider not only what outcome you want to achieve, but also how you communicate your constraints, manage the relationship and create possible solutions that could address both your needs and those of your supervisor.
+                </p>
+                
+                <p className="font-medium">
+                  Your task is to engage in this conversation strategically and thoughtfully. The success of the negotiation will depend not only on the final agreement reached, but also on your ability to navigate trade-offs, uncover underlying interests and handle the inherent tension between performance, wellbeing and long-term goals.
+                </p>
+              </div>
+              
+              <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowRoleSheet(false)}
+                  className="px-6"
+                >
+                  Go Back
+                </Button>
+                <Button
+                  variant="default"
+                  onClick={startScenario}
+                  className="px-6"
+                >
+                  Begin Negotiation
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="flex items-center justify-between border-b border-border px-4 py-4">
         <div className="w-10" /> {/* Spacer for centering */}
@@ -86,15 +161,7 @@ export default function ChatPage() {
                 <Button
                   variant="default"
                   className="h-auto py-4 px-6 flex-1 max-w-xs"
-                  onClick={() => {
-                    sendMessage({ 
-                      text: `You are Skylar, a final-year undergraduate student working under Professor Pablo. Over the past eight months, you have contributed to a research project. Your supervisor now proposes pivoting the research to a new field, which may delay your graduation and affect your preferred research direction. At the same time, you have personal and academic constraints, including upcoming exams and family responsibilities.
-
-Your task is to negotiate strategically with Professor Pablo, balancing your priorities, constraints, and the relationship while exploring options for a mutually acceptable outcome. Focus on communicating clearly, exploring options, and managing trade-offs. Your success depends not only on the outcome, but on how effectively you navigate competing priorities and maintain a positive professional relationship.
-
-Please start the negotiation scenario now. Professor Pablo, please begin the conversation.`
-                    })
-                  }}
+                  onClick={() => setShowRoleSheet(true)}
                 >
                   <div className="flex flex-col items-center gap-1">
                     <span className="font-semibold">Start Scenario</span>
