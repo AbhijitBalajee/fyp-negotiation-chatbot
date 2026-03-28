@@ -5,10 +5,12 @@ import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { Send, Bot, User, Sparkles } from 'lucide-react'
+import { Send, Bot, User, Sparkles, RotateCcw } from 'lucide-react'
 
 export default function ChatPage() {
   const [input, setInput] = useState('')
+  const [showModeSelector, setShowModeSelector] = useState(false)
+  const [showRoleSheet, setShowRoleSheet] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   
@@ -40,16 +42,105 @@ export default function ChatPage() {
     }
   }
 
+  const startScenario = () => {
+    setShowRoleSheet(false)
+    sendMessage({ 
+      text: `I have read the confidential role sheet for Skylar. I am ready to begin the negotiation scenario. Please start as Professor Pablo and initiate the conversation about pivoting the research direction.`
+    })
+  }
+
   return (
     <div className="flex flex-col h-screen bg-background">
+      {/* Role Sheet Modal */}
+      {showRoleSheet && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-background rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 sm:p-8">
+              <div className="text-center mb-6">
+                <h2 className="text-lg font-bold text-foreground uppercase tracking-wide">
+                  Confidential Role Sheet - Skylar (Student)
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">National University of Singapore</p>
+                <p className="text-xs text-muted-foreground italic mt-1">For Role-Playing Purpose Only</p>
+              </div>
+              
+              <div className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-4">
+                <p>
+                  You are taking on the role of a final-year undergraduate student in a negotiation with your academic supervisor. Your task is to engage in a conversation to determine the direction and scope of your research project, while balancing your academic goals, personal circumstances and future aspirations.
+                </p>
+                
+                <p>
+                  <strong>Skylar</strong> is a final-year undergraduate enrolled in National University of Singapore and a recipient of the prestigious Presidential Scholarship. Over the past eight months, you have been working closely with <strong>Professor Pablo</strong> on a research study within a specialised domain of your field. The project is currently at a critical midpoint, with most of the foundational research already completed and preliminary findings conducted. You have invested significant time and intellectual effort into the project and its direction aligns closely with your long-term ambition to pursue postgraduate research.
+                </p>
+                
+                <p>
+                  However, beyond academic commitments, you are overwhelmed with a particularly demanding schedule. Final examinations are approaching, and you are concurrently managing family-related obligations that have begun to take up time and emotional capacity. Over the past month, your mother has been diagnosed with Stage Four cancer. As the sole caregiver in a single-parent household, you now find yourself juggling hospital visits, financial responsibilities and emotional strain alongside your academic workload. While you have tried to make steady progress on your research, you are increasingly aware of the need to prioritise completing the research to ensure you are able to graduate on time.
+                </p>
+                
+                <p>
+                  <strong>Professor Pablo</strong>, your professor, is a well-established expert in his field with a growing research group and a strong publication record. He has been supporting you closely in your research. However, Professor Pablo has proposed to you to pivot your research focus towards a newer and more promising area. While this shift could potentially lead to a more impactful outcome, it also means revisiting earlier work, redefining its scope and potentially extending the timeline required for completion. From your perspective, this proposal introduces a lot of uncertainty. A sudden shift at this stage may increase your workload, delay your graduation and move you away from the research direction you are genuinely interested in pursuing.
+                </p>
+                
+                <p>
+                  At the same time, you recognise that Professor Pablo plays a critical role in your academic future. His evaluation will directly influence your final grade and his recommendation will be essential for postgraduate applications. Maintaining a positive working relationship is therefore an important consideration.
+                </p>
+                
+                <p>
+                  While you could explore alternatives such as requesting to retain the current scope, researching on a scaled-down version or in more extreme cases, seeking a different supervisor, these options come with risks. Another alternative you have in mind is <strong>Professor Lambert</strong>, who is also a leading figure, but in a field different from your research scope, and he may not be available or willing to take on another student at such a late stage given his tight schedule. Furthermore, changing professors could disrupt continuity and weaken the strength of future recommendations.
+                </p>
+                
+                <p>
+                  The situation has now reached a turning point where both parties must decide how to move forward. You must determine how to respond to the proposed change in direction and how to balance competing priorities under time pressure and uncertainty. As you enter this negotiation, consider not only what outcome you want to achieve, but also how you communicate your constraints, manage the relationship and create possible solutions that could address both your needs and those of your supervisor.
+                </p>
+                
+                <p className="font-medium">
+                  Your task is to engage in this conversation strategically and thoughtfully. The success of the negotiation will depend not only on the final agreement reached, but also on your ability to navigate trade-offs, uncover underlying interests and handle the inherent tension between performance, wellbeing and long-term goals.
+                </p>
+              </div>
+              
+              <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowRoleSheet(false)}
+                  className="px-6"
+                >
+                  Go Back
+                </Button>
+                <Button
+                  variant="default"
+                  onClick={startScenario}
+                  className="px-6"
+                >
+                  Begin Negotiation
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
-      <header className="flex items-center justify-center gap-2 border-b border-border px-4 py-4">
+      <header className="flex items-center justify-between border-b border-border px-4 py-4">
+        <div className="w-10" /> {/* Spacer for centering */}
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
             <Sparkles className="h-4 w-4 text-primary-foreground" />
           </div>
           <h1 className="text-lg font-semibold text-foreground">Negotiation Coach</h1>
         </div>
+        {messages.length > 0 ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowModeSelector(true)}
+            title="Switch Mode"
+            className="h-10 w-10"
+          >
+            <RotateCcw className="h-5 w-5" />
+            <span className="sr-only">Switch Mode</span>
+          </Button>
+        ) : (
+          <div className="w-10" /> 
+        )}
       </header>
 
       {/* Messages */}
@@ -61,47 +152,45 @@ export default function ChatPage() {
                 <Bot className="h-8 w-8 text-muted-foreground" />
               </div>
               <h2 className="text-xl font-semibold text-foreground mb-2">
-                Welcome to Negotiation Coach
+                Welcome to Negotiation Coach!
               </h2>
-              <p className="text-muted-foreground max-w-md mb-8">
-                Ready to sharpen your negotiation skills? Let&apos;s practice with a case study or explore strategies together.
+              <p className="text-muted-foreground max-w-lg mb-8">
+                Sharpen your negotiation skills by practicing a real-world scenario or reviewing key concepts first. You can choose:
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
+              <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg justify-center">
                 <Button
-                  variant="outline"
-                  className="h-auto py-3 px-4 justify-start text-left"
-                  onClick={() => {
-                    sendMessage({ text: 'Simulate a negotiation scenario' })
-                  }}
+                  variant="default"
+                  className="h-auto py-4 px-6 flex-1 max-w-xs"
+                  onClick={() => setShowRoleSheet(true)}
                 >
-                  <span className="text-sm">Simulate a negotiation scenario</span>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="font-semibold">Start Scenario</span>
+                    <span className="text-xs opacity-80">Begin the Skylar negotiation case</span>
+                  </div>
                 </Button>
                 <Button
                   variant="outline"
-                  className="h-auto py-3 px-4 justify-start text-left"
+                  className="h-auto py-4 px-6 flex-1 max-w-xs"
                   onClick={() => {
-                    sendMessage({ text: 'Review my positions & interests' })
+                    sendMessage({ 
+                      text: `Before starting the negotiation, please give me a quick breakdown of key negotiation concepts to guide my strategy. Cover the following 7 elements:
+
+1. **Interests** – Understanding goals and priorities
+2. **Options** – Brainstorming possible solutions
+3. **Alternatives (BATNA)** – Best alternatives if negotiation fails
+4. **Legitimacy** – Fair standards, precedents, or objective criteria
+5. **Communication** – Expressing needs clearly and listening actively
+6. **Relationship** – Maintaining trust and positive rapport
+7. **Commitment** – Working toward mutually acceptable agreements
+
+Please explain each concept briefly so I can use this framework during the scenario.`
+                    })
                   }}
                 >
-                  <span className="text-sm">Review my positions & interests</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto py-3 px-4 justify-start text-left"
-                  onClick={() => {
-                    sendMessage({ text: 'Generate counteroffers' })
-                  }}
-                >
-                  <span className="text-sm">Generate counteroffers</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto py-3 px-4 justify-start text-left"
-                  onClick={() => {
-                    sendMessage({ text: 'Explain negotiation strategies (7-step method)' })
-                  }}
-                >
-                  <span className="text-sm">Explain negotiation strategies (7-step method)</span>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="font-semibold">Review Concepts</span>
+                    <span className="text-xs opacity-80">Learn negotiation strategies first</span>
+                  </div>
                 </Button>
               </div>
             </div>
@@ -159,6 +248,44 @@ export default function ChatPage() {
                       <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:-0.15s]" />
                       <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" />
                     </div>
+                  </div>
+                </div>
+              )}
+              {/* Inline Mode Selector */}
+              {showModeSelector && (
+                <div className="flex flex-col items-center py-6 border-t border-border mt-4">
+                  <p className="text-sm text-muted-foreground mb-4">Choose what you&apos;d like to do next:</p>
+                  <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md justify-center">
+                    <Button
+                      variant="default"
+                      className="h-auto py-3 px-5 flex-1"
+                      onClick={() => {
+                        setShowModeSelector(false)
+                        sendMessage({ 
+                          text: `Let's start (or continue) the negotiation scenario. I am Skylar, a final-year undergraduate student working under Professor Pablo. Please continue as Professor Pablo and engage in the negotiation with me.`
+                        })
+                      }}
+                    >
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="font-semibold text-sm">Start/Continue Scenario</span>
+                        <span className="text-xs opacity-80">Negotiate with Professor Pablo</span>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-auto py-3 px-5 flex-1"
+                      onClick={() => {
+                        setShowModeSelector(false)
+                        sendMessage({ 
+                          text: `Please review the key negotiation concepts with me. Explain the 7 elements: Interests, Options, Alternatives (BATNA), Legitimacy, Communication, Relationship, and Commitment.`
+                        })
+                      }}
+                    >
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="font-semibold text-sm">Review Concepts</span>
+                        <span className="text-xs opacity-80">Learn negotiation strategies</span>
+                      </div>
+                    </Button>
                   </div>
                 </div>
               )}
