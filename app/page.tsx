@@ -45,7 +45,7 @@ export default function ChatPage() {
   const startScenario = () => {
     setShowRoleSheet(false)
     sendMessage({ 
-      text: `I have read the confidential role sheet for Skylar. I am ready to begin the negotiation scenario. Please start as Professor Pablo and initiate the conversation about pivoting the research direction.`
+      text: `I have read my role sheet and I am ready to begin the negotiation. Please start the scenario as Professor Pablo.`
     })
   }
 
