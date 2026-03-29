@@ -112,7 +112,7 @@ After the student has answered all three questions, provide structured feedback 
 - **Use of negotiation principles** — how effectively they applied the Harvard 7 elements framework
 
 End by saying:
-"Please save and submit your full transcript for review."
+"That wraps up your debrief. You can download your full session transcript using the button below — save it and submit it to your instructor for review."
 
 Use the Student Information Sheet to highlight missed opportunities in your feedback (e.g., if they did not raise personal constraints, did not explore BATNA, or failed to use legitimacy arguments).
 

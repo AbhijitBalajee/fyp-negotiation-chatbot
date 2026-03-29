@@ -5,7 +5,7 @@ import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { Send, Bot, User, Sparkles, LayoutGrid, Eye, Flag } from 'lucide-react'
+import { Send, Bot, User, Sparkles, LayoutGrid, Eye, Flag, Download } from 'lucide-react'
 
 export default function ChatPage() {
   const [input, setInput] = useState('')
@@ -13,6 +13,7 @@ export default function ChatPage() {
   const [showRoleSheet, setShowRoleSheet] = useState(false)
   const [roleSheetFromModeSelector, setRoleSheetFromModeSelector] = useState(false)
   const [showObjectives, setShowObjectives] = useState(false)
+  const [debriefStarted, setDebriefStarted] = useState(false)
   const [userName, setUserName] = useState('')
   const [nameInput, setNameInput] = useState('')
   const [nameSubmitted, setNameSubmitted] = useState(false)
@@ -71,6 +72,38 @@ export default function ChatPage() {
       e.preventDefault()
       handleSubmit(e)
     }
+  }
+
+  const downloadTranscript = () => {
+    const timestamp = new Date().toLocaleString()
+    const lines: string[] = [
+      'NEGOTIATION COACH — SESSION TRANSCRIPT',
+      `Student: ${userName}`,
+      `Date: ${timestamp}`,
+      '='.repeat(60),
+      '',
+    ]
+    messages.forEach((msg) => {
+      const role = msg.role === 'user' ? `${userName} (You)` : 'Negotiation Coach (Professor Pablo / Facilitator)'
+      const text = msg.parts
+        .filter((p) => p.type === 'text')
+        .map((p) => (p as { type: 'text'; text: string }).text)
+        .join('')
+      // Skip internal trigger messages
+      if (text.trim() === 'END_DEBRIEF_TRIGGER') return
+      lines.push(`[${role}]`)
+      lines.push(text)
+      lines.push('')
+    })
+    lines.push('='.repeat(60))
+    lines.push('End of transcript.')
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `negotiation-transcript-${userName.toLowerCase().replace(/\s+/g, '-')}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const startScenario = () => {
@@ -424,6 +457,7 @@ export default function ChatPage() {
               size="sm"
               className="flex items-center gap-1.5 text-xs font-medium text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
               onClick={() => {
+                setDebriefStarted(true)
                 sendMessage({ text: 'END_DEBRIEF_TRIGGER' })
               }}
             >
@@ -460,6 +494,21 @@ export default function ChatPage() {
               <span className="sr-only">Send message</span>
             </Button>
           </form>
+          {debriefStarted && !isLoading && (
+            <div className="mx-auto mt-3 max-w-3xl flex flex-col items-center gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 font-medium"
+                onClick={downloadTranscript}
+              >
+                <Download className="h-4 w-4" />
+                Download Transcript
+              </Button>
+              <p className="text-xs text-muted-foreground">Save and submit your full session transcript for review.</p>
+            </div>
+          )}
           <p className="mx-auto mt-2 max-w-3xl text-center text-xs text-muted-foreground">
             AI may produce inaccurate information. Consider checking important facts.
           </p>
