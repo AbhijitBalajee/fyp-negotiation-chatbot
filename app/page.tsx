@@ -5,12 +5,13 @@ import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { Send, Bot, User, Sparkles, RotateCcw } from 'lucide-react'
+import { Send, Bot, User, Sparkles, LayoutGrid, Eye, Flag } from 'lucide-react'
 
 export default function ChatPage() {
   const [input, setInput] = useState('')
   const [showModeSelector, setShowModeSelector] = useState(false)
   const [showRoleSheet, setShowRoleSheet] = useState(false)
+  const [showObjectives, setShowObjectives] = useState(false)
   const [userName, setUserName] = useState('')
   const [nameInput, setNameInput] = useState('')
   const [nameSubmitted, setNameSubmitted] = useState(false)
@@ -133,6 +134,54 @@ export default function ChatPage() {
         </div>
       )}
 
+      {/* Objectives Modal */}
+      {showObjectives && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-background rounded-xl shadow-xl max-w-xl w-full max-h-[85vh] overflow-y-auto">
+            <div className="p-6 sm:p-8">
+              <div className="text-center mb-5">
+                <h2 className="text-base font-bold text-foreground uppercase tracking-wide">
+                  Your Goals &amp; Constraints — Skylar
+                </h2>
+                <p className="text-xs text-muted-foreground italic mt-1">For Role-Playing Purpose Only</p>
+              </div>
+              <div className="space-y-4 text-sm text-foreground">
+                <div>
+                  <p className="font-semibold mb-1">Your Main Goal</p>
+                  <p className="text-muted-foreground">Complete your research on time and graduate within 4 months, without pivoting to a new field that delays your studies or moves you away from your intended postgraduate direction.</p>
+                </div>
+                <div>
+                  <p className="font-semibold mb-1">Key Constraints</p>
+                  <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                    <li>Final examinations are approaching — limited time for research work</li>
+                    <li>Your mother has been diagnosed with Stage Four cancer; you are the sole caregiver</li>
+                    <li>You need Professor Pablo&apos;s recommendation for postgraduate applications</li>
+                    <li>Pivoting now means restarting significant portions of completed work</li>
+                  </ul>
+                </div>
+                <div>
+                  <p className="font-semibold mb-1">Your Alternatives (if no agreement)</p>
+                  <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                    <li>Propose a scaled-down version of the pivot that fits your timeline</li>
+                    <li>Request to retain the current research scope with minor adjustments</li>
+                    <li>Explore switching to Professor Lambert — though he may be unavailable and switching risks weakening your recommendation letters</li>
+                  </ul>
+                </div>
+                <div>
+                  <p className="font-semibold mb-1">Relationship Consideration</p>
+                  <p className="text-muted-foreground">Professor Pablo directly controls your final grade and recommendation letters. Maintaining a positive professional relationship matters even if the outcome is not ideal.</p>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-center">
+                <Button variant="default" onClick={() => setShowObjectives(false)} className="px-8">
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="flex items-center justify-between border-b border-border px-4 py-4">
         <div className="w-10" />
@@ -144,14 +193,13 @@ export default function ChatPage() {
         </div>
         {messages.length > 0 ? (
           <Button
-            variant="ghost"
-            size="icon"
+            variant="outline"
+            size="sm"
             onClick={() => setShowModeSelector(true)}
-            title="Switch Mode"
-            className="h-10 w-10"
+            className="flex items-center gap-1.5 text-xs font-medium"
           >
-            <RotateCcw className="h-5 w-5" />
-            <span className="sr-only">Switch Mode</span>
+            <LayoutGrid className="h-3.5 w-3.5" />
+            Change Mode
           </Button>
         ) : (
           <div className="w-10" />
@@ -336,6 +384,31 @@ export default function ChatPage() {
       {/* Input — only show after name is submitted and chat has started */}
       {nameSubmitted && messages.length > 0 && (
         <footer className="border-t border-border bg-background p-4">
+          {/* Action buttons row */}
+          <div className="mx-auto mb-3 flex max-w-3xl items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
+              onClick={() => setShowObjectives(true)}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              View Objectives
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1.5 text-xs font-medium text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => {
+                sendMessage({ text: 'END_DEBRIEF_TRIGGER' })
+              }}
+            >
+              <Flag className="h-3.5 w-3.5" />
+              End Negotiation
+            </Button>
+          </div>
           <form onSubmit={handleSubmit} className="mx-auto flex max-w-3xl items-end gap-3">
             <div className="relative flex-1">
               <textarea
