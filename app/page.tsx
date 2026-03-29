@@ -11,6 +11,7 @@ export default function ChatPage() {
   const [input, setInput] = useState('')
   const [showModeSelector, setShowModeSelector] = useState(false)
   const [showRoleSheet, setShowRoleSheet] = useState(false)
+  const [roleSheetFromModeSelector, setRoleSheetFromModeSelector] = useState(false)
   const [showObjectives, setShowObjectives] = useState(false)
   const [userName, setUserName] = useState('')
   const [nameInput, setNameInput] = useState('')
@@ -74,6 +75,8 @@ export default function ChatPage() {
 
   const startScenario = () => {
     setShowRoleSheet(false)
+    setRoleSheetFromModeSelector(false)
+    setShowModeSelector(false)
     sendMessage({
       text: `I have read my role sheet and I am ready to begin the negotiation. Please start the scenario as Professor Pablo.`,
     })
@@ -122,7 +125,17 @@ export default function ChatPage() {
               </div>
 
               <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-                <Button variant="outline" onClick={() => setShowRoleSheet(false)} className="px-6">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowRoleSheet(false)
+                    if (roleSheetFromModeSelector) {
+                      setShowModeSelector(true)
+                      setRoleSheetFromModeSelector(false)
+                    }
+                  }}
+                  className="px-6"
+                >
                   Go Back
                 </Button>
                 <Button variant="default" onClick={startScenario} className="px-6">
@@ -172,8 +185,18 @@ export default function ChatPage() {
                   <p className="text-muted-foreground">Professor Pablo directly controls your final grade and recommendation letters. Maintaining a positive professional relationship matters even if the outcome is not ideal.</p>
                 </div>
               </div>
-              <div className="mt-6 flex justify-center">
-                <Button variant="default" onClick={() => setShowObjectives(false)} className="px-8">
+              <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowObjectives(false)
+                    setShowRoleSheet(true)
+                  }}
+                  className="px-6"
+                >
+                  Read Full Role Sheet
+                </Button>
+                <Button variant="default" onClick={() => setShowObjectives(false)} className="px-6">
                   Close
                 </Button>
               </div>
@@ -346,9 +369,8 @@ export default function ChatPage() {
                       className="h-auto py-3 px-5 flex-1"
                       onClick={() => {
                         setShowModeSelector(false)
-                        sendMessage({
-                          text: `Let's start (or continue) the negotiation scenario. I am Skylar, a final-year undergraduate student working under Professor Pablo. Please continue as Professor Pablo and engage in the negotiation with me.`,
-                        })
+                        setRoleSheetFromModeSelector(true)
+                        setShowRoleSheet(true)
                       }}
                     >
                       <div className="flex flex-col items-center gap-0.5">
