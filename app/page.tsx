@@ -36,6 +36,7 @@ export default function ChatPage() {
   const [debriefStarted, setDebriefStarted] = useState(false)
   const [finalReportHtml, setFinalReportHtml] = useState<string | null>(null)
   const [finalReportGenerating, setFinalReportGenerating] = useState(false)
+  const [showFinalReport, setShowFinalReport] = useState(false)
   const [userName, setUserName] = useState('')
   const [nameInput, setNameInput] = useState('')
   const [nameSubmitted, setNameSubmitted] = useState(false)
@@ -96,6 +97,7 @@ export default function ChatPage() {
         if (!res.ok) throw new Error('Failed to generate report')
         const data = (await res.json()) as { html: string }
         setFinalReportHtml(data.html)
+        setShowFinalReport(true)
       })
       .catch(() => {
         // If report generation fails, we still let them download the plain transcript report.
@@ -345,6 +347,56 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
+      {/* Final Report Modal (auto-opens after Q3) */}
+      {showFinalReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-background rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 sm:p-8">
+              <div className="text-center mb-6">
+                <h2 className="text-lg font-bold text-foreground uppercase tracking-wide">
+                  Final Evaluation Report
+                </h2>
+                <p className="text-xs text-muted-foreground italic mt-1">
+                  Generated after your debrief responses
+                </p>
+              </div>
+
+              {finalReportGenerating && (
+                <p className="text-sm text-muted-foreground text-center">
+                  Generating your report…
+                </p>
+              )}
+
+              {!finalReportGenerating && finalReportHtml && (
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <div dangerouslySetInnerHTML={{ __html: finalReportHtml }} />
+                </div>
+              )}
+
+              {!finalReportGenerating && !finalReportHtml && (
+                <p className="text-sm text-muted-foreground text-center">
+                  Couldn’t generate the report right now. You can still download the transcript.
+                </p>
+              )}
+
+              <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+                <Button variant="outline" onClick={() => setShowFinalReport(false)} className="px-6">
+                  Close
+                </Button>
+                <Button
+                  variant="default"
+                  onClick={downloadFinalReport}
+                  className="px-6"
+                  disabled={finalReportGenerating}
+                >
+                  Download Final Report
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Role Sheet Modal */}
       {showRoleSheet && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -559,6 +611,15 @@ export default function ChatPage() {
               <DropdownMenuItem onClick={() => setShowObjectives(true)}>
                 <LayoutGrid className="h-4 w-4" />
                 View Objectives
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (finalReportHtml) setShowFinalReport(true)
+                }}
+                data-disabled={!finalReportHtml}
+              >
+                <FileDown className="h-4 w-4" />
+                View Final Report
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -795,6 +856,17 @@ export default function ChatPage() {
                 >
                   <FileDown className="h-4 w-4" />
                   Download Final Report
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 font-medium"
+                  onClick={() => setShowFinalReport(true)}
+                  disabled={!finalReportHtml}
+                >
+                  <FileDown className="h-4 w-4" />
+                  View Final Report
                 </Button>
                 <Button
                   type="button"
