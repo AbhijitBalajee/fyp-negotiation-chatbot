@@ -4,8 +4,29 @@ import { useState, useRef, useEffect } from 'react'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-import { Send, Bot, User, Sparkles, LayoutGrid, Eye, Flag, Download } from 'lucide-react'
+import {
+  Send,
+  Bot,
+  User,
+  Sparkles,
+  LayoutGrid,
+  Eye,
+  Flag,
+  Download,
+  Menu,
+  MessageSquareText,
+  BookOpen,
+  FileDown,
+} from 'lucide-react'
 
 export default function ChatPage() {
   const [input, setInput] = useState('')
@@ -13,10 +34,12 @@ export default function ChatPage() {
   const [showRoleSheet, setShowRoleSheet] = useState(false)
   const [roleSheetFromModeSelector, setRoleSheetFromModeSelector] = useState(false)
   const [showObjectives, setShowObjectives] = useState(false)
+  const [showCaseStudy, setShowCaseStudy] = useState(false)
   const [debriefStarted, setDebriefStarted] = useState(false)
   const [userName, setUserName] = useState('')
   const [nameInput, setNameInput] = useState('')
   const [nameSubmitted, setNameSubmitted] = useState(false)
+  const [researchTier, setResearchTier] = useState<'tier1' | 'tier2' | 'tier3'>('tier1')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
@@ -58,12 +81,20 @@ export default function ChatPage() {
       trimmed.includes('end negotiation and begin debrief') ||
       trimmed.includes('begin debrief')
     ) {
+      setDebriefStarted(true)
       sendMessage({ text: 'END_DEBRIEF_TRIGGER' })
       setInput('')
       return
     }
 
-    sendMessage({ text: input })
+    // Prefix the user's message with the requested depth so the model can answer in tiers.
+    const tierLabel =
+      researchTier === 'tier1'
+        ? 'Tier 1 (Quick)'
+        : researchTier === 'tier2'
+          ? 'Tier 2 (Deeper)'
+          : 'Tier 3 (Technical)'
+    sendMessage({ text: `[Research depth: ${tierLabel}]\n${input}` })
     setInput('')
   }
 
@@ -102,6 +133,154 @@ export default function ChatPage() {
     const a = document.createElement('a')
     a.href = url
     a.download = `negotiation-transcript-${userName.toLowerCase().replace(/\s+/g, '-')}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const downloadFinalReport = () => {
+    const timestamp = new Date().toLocaleString()
+    const safeName = userName.toLowerCase().replace(/\s+/g, '-')
+
+    const transcriptHtml = messages
+      .map((msg) => {
+        const role =
+          msg.role === 'user'
+            ? `${userName} (Student)`
+            : 'Negotiation Coach (Professor Pablo / Facilitator)'
+        const text = msg.parts
+          .filter((p) => p.type === 'text')
+          .map((p) => (p as { type: 'text'; text: string }).text)
+          .join('')
+
+        if (text.trim() === 'END_DEBRIEF_TRIGGER') return ''
+
+        const bubbleClass =
+          msg.role === 'user' ? 'bubble bubble-user' : 'bubble bubble-assistant'
+
+        const escaped = text
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;')
+          .replace(/\n/g, '<br/>')
+
+        return `
+          <div class="turn">
+            <div class="meta">${role}</div>
+            <div class="${bubbleClass}">${escaped}</div>
+          </div>
+        `
+      })
+      .join('\n')
+
+    const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Negotiation Coach — Final Report</title>
+    <style>
+      :root{
+        --bg:#0b0f19; --card:#0f172a; --muted:#94a3b8; --text:#e5e7eb;
+        --border:rgba(148,163,184,.18); --accent:#60a5fa; --accent2:#a78bfa;
+        --user:#2563eb; --assistant:rgba(148,163,184,.12);
+      }
+      *{ box-sizing:border-box; }
+      body{
+        margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        background: radial-gradient(1200px 600px at 15% 0%, rgba(96,165,250,.16), transparent 55%),
+                    radial-gradient(900px 600px at 85% 10%, rgba(167,139,250,.12), transparent 60%),
+                    var(--bg);
+        color:var(--text);
+      }
+      .wrap{ max-width: 940px; margin: 40px auto; padding: 0 18px 40px; }
+      .header{
+        border:1px solid var(--border); background: linear-gradient(180deg, rgba(15,23,42,.9), rgba(15,23,42,.75));
+        border-radius: 18px; padding: 18px 18px 16px; overflow:hidden;
+      }
+      .titleRow{ display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+      h1{ margin:0; font-size: 18px; letter-spacing:.02em; }
+      .subtitle{ margin:6px 0 0; color:var(--muted); font-size: 12px; line-height: 1.5; }
+      .pill{
+        display:inline-flex; align-items:center; gap:8px; padding:8px 10px;
+        border:1px solid var(--border); border-radius: 999px; color:var(--muted);
+        font-size: 12px; white-space:nowrap;
+      }
+      .grid{ display:grid; grid-template-columns: 1fr; gap: 14px; margin-top: 14px; }
+      .card{
+        border:1px solid var(--border); background: rgba(15,23,42,.62);
+        border-radius: 18px; padding: 16px;
+      }
+      .card h2{ margin: 0 0 8px; font-size: 13px; letter-spacing:.06em; text-transform: uppercase; color: rgba(229,231,235,.92); }
+      .kv{ display:grid; grid-template-columns: 160px 1fr; gap: 8px 10px; font-size: 13px; }
+      .k{ color: var(--muted); }
+      .v{ color: var(--text); }
+      .turn{ margin: 14px 0; }
+      .meta{ font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+      .bubble{
+        border:1px solid var(--border); border-radius: 16px; padding: 12px 12px;
+        font-size: 13px; line-height: 1.6; background: var(--assistant);
+      }
+      .bubble-user{
+        background: linear-gradient(180deg, rgba(37,99,235,.9), rgba(37,99,235,.75));
+        border-color: rgba(96,165,250,.35);
+      }
+      .footer{ margin-top: 14px; color: var(--muted); font-size: 12px; text-align:center; }
+      @media (min-width: 860px){
+        .grid{ grid-template-columns: 1fr 1fr; }
+      }
+      @media print{
+        body{ background:#fff; color:#111827; }
+        .header,.card,.bubble{ background:#fff !important; border-color:#e5e7eb !important; }
+        .pill,.k,.meta,.subtitle,.footer{ color:#4b5563 !important; }
+        .bubble-user{ background:#eff6ff !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="header">
+        <div class="titleRow">
+          <div>
+            <h1>Negotiation Coach — Final Report</h1>
+            <p class="subtitle">A clean, printable record of your negotiation session.</p>
+          </div>
+          <div class="pill">Student: <strong style="color:var(--text); font-weight:600">${userName}</strong></div>
+        </div>
+        <div class="grid">
+          <div class="card">
+            <h2>Session details</h2>
+            <div class="kv">
+              <div class="k">Date</div><div class="v">${timestamp}</div>
+              <div class="k">App</div><div class="v">Negotiation Coach</div>
+            </div>
+          </div>
+          <div class="card">
+            <h2>How to use</h2>
+            <div class="kv">
+              <div class="k">Print/PDF</div><div class="v">Use your browser’s print dialog to save as PDF.</div>
+              <div class="k">Notes</div><div class="v">Internal trigger messages are excluded from this report.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2>Transcript</h2>
+        ${transcriptHtml || '<div class="meta">No messages captured.</div>'}
+      </div>
+
+      <div class="footer">Generated by Negotiation Coach</div>
+    </div>
+  </body>
+</html>`
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `negotiation-final-report-${safeName}.html`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -183,6 +362,46 @@ export default function ChatPage() {
         </div>
       )}
 
+      {/* Case Study Modal (shown before objectives) */}
+      {showCaseStudy && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-background rounded-xl shadow-xl max-w-xl w-full max-h-[85vh] overflow-y-auto">
+            <div className="p-6 sm:p-8">
+              <div className="text-center mb-5">
+                <h2 className="text-base font-bold text-foreground uppercase tracking-wide">
+                  Case Study — Skylar vs Professor Pablo
+                </h2>
+                <p className="text-xs text-muted-foreground italic mt-1">For Role-Playing Purpose Only</p>
+              </div>
+              <div className="space-y-4 text-sm text-foreground">
+                <p className="text-muted-foreground">
+                  You are Skylar, a final-year undergraduate and scholarship recipient. You&apos;re midway through a niche research project on mechanical heart valves.
+                  Your supervisor, Professor Pablo, wants you to pivot to a newer, higher-impact direction that could delay graduation by ~1 year.
+                </p>
+                <p className="text-muted-foreground">
+                  You&apos;re under time pressure (final exams) and personal strain (family caregiving). You need to balance graduating on time with maintaining a good working relationship and protecting your future recommendations.
+                </p>
+              </div>
+              <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowCaseStudy(false)
+                    setShowRoleSheet(true)
+                  }}
+                  className="px-6"
+                >
+                  Read Full Role Sheet
+                </Button>
+                <Button variant="default" onClick={() => setShowCaseStudy(false)} className="px-6">
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Objectives Modal */}
       {showObjectives && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -226,11 +445,11 @@ export default function ChatPage() {
                   variant="outline"
                   onClick={() => {
                     setShowObjectives(false)
-                    setShowRoleSheet(true)
+                    setShowCaseStudy(true)
                   }}
                   className="px-6"
                 >
-                  Read Full Role Sheet
+                  View Case Study
                 </Button>
                 <Button variant="default" onClick={() => setShowObjectives(false)} className="px-6">
                   Close
@@ -251,15 +470,64 @@ export default function ChatPage() {
           <h1 className="text-lg font-semibold text-foreground">Negotiation Coach</h1>
         </div>
         {messages.length > 0 ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowModeSelector(true)}
-            className="flex items-center gap-1.5 text-xs font-medium"
-          >
-            <LayoutGrid className="h-3.5 w-3.5" />
-            Change Mode
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 text-xs font-medium"
+                title="Open session actions (scenario, concepts, debrief)"
+              >
+                <Menu className="h-3.5 w-3.5" />
+                Actions
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[230px]">
+              <DropdownMenuLabel className="text-xs">What would you like to do?</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  setShowModeSelector(false)
+                  setRoleSheetFromModeSelector(true)
+                  setShowRoleSheet(true)
+                }}
+              >
+                <MessageSquareText className="h-4 w-4" />
+                Continue Scenario
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setShowModeSelector(false)
+                  sendMessage({
+                    text: `Please review the key negotiation concepts with me. Explain the 7 elements: Interests, Options, Alternatives (BATNA), Legitimacy, Communication, Relationship, and Commitment.`,
+                  })
+                }}
+              >
+                <BookOpen className="h-4 w-4" />
+                Review Concepts
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setShowCaseStudy(true)}>
+                <Eye className="h-4 w-4" />
+                View Case Study
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowObjectives(true)}>
+                <LayoutGrid className="h-4 w-4" />
+                View Objectives
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => {
+                  setDebriefStarted(true)
+                  sendMessage({ text: 'END_DEBRIEF_TRIGGER' })
+                }}
+              >
+                <Flag className="h-4 w-4" />
+                End Negotiation & Start Debrief
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : (
           <div className="w-10" />
         )}
@@ -449,11 +717,39 @@ export default function ChatPage() {
               variant="outline"
               size="sm"
               className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
+              onClick={() => setShowCaseStudy(true)}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              View Case Study
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
               onClick={() => setShowObjectives(true)}
             >
               <Eye className="h-3.5 w-3.5" />
               View Objectives
             </Button>
+
+            <div className="ml-auto flex items-center gap-2">
+              <label className="text-xs text-muted-foreground">Depth</label>
+              <select
+                value={researchTier}
+                onChange={(e) => setResearchTier(e.target.value as typeof researchTier)}
+                className={cn(
+                  'h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground',
+                  'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
+                )}
+                disabled={isLoading}
+              >
+                <option value="tier1">Tier 1 (Quick)</option>
+                <option value="tier2">Tier 2 (Deeper)</option>
+                <option value="tier3">Tier 3 (Technical)</option>
+              </select>
+            </div>
+
             <Button
               type="button"
               variant="outline"
@@ -499,17 +795,31 @@ export default function ChatPage() {
           </form>
           {debriefStarted && !isLoading && (
             <div className="mx-auto mt-3 max-w-3xl flex flex-col items-center gap-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2 font-medium"
-                onClick={downloadTranscript}
-              >
-                <Download className="h-4 w-4" />
-                Download Transcript
-              </Button>
-              <p className="text-xs text-muted-foreground">Save and submit your full session transcript for review.</p>
+              <div className="flex flex-col sm:flex-row items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 font-medium"
+                  onClick={downloadFinalReport}
+                >
+                  <FileDown className="h-4 w-4" />
+                  Download Final Report
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 font-medium"
+                  onClick={downloadTranscript}
+                >
+                  <Download className="h-4 w-4" />
+                  Download Transcript (.txt)
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The final report is a styled HTML file you can print/save as PDF.
+              </p>
             </div>
           )}
           <p className="mx-auto mt-2 max-w-3xl text-center text-xs text-muted-foreground">
