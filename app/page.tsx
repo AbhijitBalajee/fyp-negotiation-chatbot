@@ -30,12 +30,12 @@ import {
 
 export default function ChatPage() {
   const [input, setInput] = useState('')
-  const [showModeSelector, setShowModeSelector] = useState(false)
   const [showRoleSheet, setShowRoleSheet] = useState(false)
-  const [roleSheetFromModeSelector, setRoleSheetFromModeSelector] = useState(false)
   const [showObjectives, setShowObjectives] = useState(false)
   const [showCaseStudy, setShowCaseStudy] = useState(false)
   const [debriefStarted, setDebriefStarted] = useState(false)
+  const [finalReportHtml, setFinalReportHtml] = useState<string | null>(null)
+  const [finalReportGenerating, setFinalReportGenerating] = useState(false)
   const [userName, setUserName] = useState('')
   const [nameInput, setNameInput] = useState('')
   const [nameSubmitted, setNameSubmitted] = useState(false)
@@ -56,6 +56,53 @@ export default function ChatPage() {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  useEffect(() => {
+    if (!debriefStarted) return
+    if (finalReportHtml || finalReportGenerating) return
+
+    const triggerIndex = messages.findIndex((m) => {
+      if (m.role !== 'user') return false
+      const text = m.parts
+        .filter((p) => p.type === 'text')
+        .map((p) => (p as { type: 'text'; text: string }).text)
+        .join('')
+        .trim()
+      return text === 'END_DEBRIEF_TRIGGER'
+    })
+    if (triggerIndex === -1) return
+
+    const userAnswersCount = messages
+      .slice(triggerIndex + 1)
+      .filter((m) => m.role === 'user')
+      .map((m) =>
+        m.parts
+          .filter((p) => p.type === 'text')
+          .map((p) => (p as { type: 'text'; text: string }).text)
+          .join('')
+          .trim()
+      )
+      .filter((t) => t.length > 0).length
+
+    if (userAnswersCount < 3) return
+
+    setFinalReportGenerating(true)
+    fetch('/api/report', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ userName, messages }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed to generate report')
+        const data = (await res.json()) as { html: string }
+        setFinalReportHtml(data.html)
+      })
+      .catch(() => {
+        // If report generation fails, we still let them download the plain transcript report.
+        setFinalReportHtml(null)
+      })
+      .finally(() => setFinalReportGenerating(false))
+  }, [debriefStarted, finalReportHtml, finalReportGenerating, messages, userName])
 
   useEffect(() => {
     if (!nameSubmitted) {
@@ -166,6 +213,16 @@ export default function ChatPage() {
       })
       .join('\n')
 
+    const coachingSection = finalReportHtml
+      ? `<div class="card" style="margin-top:14px">
+           <h2>Evaluation summary</h2>
+           ${finalReportHtml}
+         </div>`
+      : `<div class="card" style="margin-top:14px">
+           <h2>Evaluation summary</h2>
+           <div class="meta">Report not available. You can still use the transcript below.</div>
+         </div>`
+
     const html = `<!doctype html>
 <html lang="en">
   <head>
@@ -258,6 +315,8 @@ export default function ChatPage() {
         </div>
       </div>
 
+      ${coachingSection}
+
       <div class="card" style="margin-top:14px">
         <h2>Transcript</h2>
         ${transcriptHtml || '<div class="meta">No messages captured.</div>'}
@@ -279,8 +338,6 @@ export default function ChatPage() {
 
   const startScenario = () => {
     setShowRoleSheet(false)
-    setRoleSheetFromModeSelector(false)
-    setShowModeSelector(false)
     sendMessage({
       text: `I have read my role sheet and I am ready to begin the negotiation. Please start the scenario as Professor Pablo.`,
     })
@@ -336,10 +393,6 @@ export default function ChatPage() {
                   variant="outline"
                   onClick={() => {
                     setShowRoleSheet(false)
-                    if (roleSheetFromModeSelector) {
-                      setShowModeSelector(true)
-                      setRoleSheetFromModeSelector(false)
-                    }
                   }}
                   className="px-6"
                 >
@@ -480,9 +533,9 @@ export default function ChatPage() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => {
-                  setShowModeSelector(false)
-                  setRoleSheetFromModeSelector(true)
-                  setShowRoleSheet(true)
+                  sendMessage({
+                    text: `Continue the negotiation scenario as Professor Pablo. Pick up from our last point and ask a pointed next question.`,
+                  })
                 }}
               >
                 <MessageSquareText className="h-4 w-4" />
@@ -490,7 +543,6 @@ export default function ChatPage() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
-                  setShowModeSelector(false)
                   sendMessage({
                     text: `Please review the key negotiation concepts with me. Explain the 7 elements: Interests, Options, Alternatives (BATNA), Legitimacy, Communication, Relationship, and Commitment.`,
                   })
@@ -652,44 +704,6 @@ export default function ChatPage() {
                       <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:-0.15s]" />
                       <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" />
                     </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Inline Mode Selector */}
-              {showModeSelector && (
-                <div className="flex flex-col items-center py-6 border-t border-border mt-4">
-                  <p className="text-sm text-muted-foreground mb-4">Choose what you&apos;d like to do next:</p>
-                  <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md justify-center">
-                    <Button
-                      variant="default"
-                      className="h-auto py-3 px-5 flex-1"
-                      onClick={() => {
-                        setShowModeSelector(false)
-                        setRoleSheetFromModeSelector(true)
-                        setShowRoleSheet(true)
-                      }}
-                    >
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span className="font-semibold text-sm">Start/Continue Scenario</span>
-                        <span className="text-xs opacity-80">Negotiate with Professor Pablo</span>
-                      </div>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-auto py-3 px-5 flex-1"
-                      onClick={() => {
-                        setShowModeSelector(false)
-                        sendMessage({
-                          text: `Please review the key negotiation concepts with me. Explain the 7 elements: Interests, Options, Alternatives (BATNA), Legitimacy, Communication, Relationship, and Commitment.`,
-                        })
-                      }}
-                    >
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span className="font-semibold text-sm">Review Concepts</span>
-                        <span className="text-xs opacity-80">Learn negotiation strategies</span>
-                      </div>
-                    </Button>
                   </div>
                 </div>
               )}
