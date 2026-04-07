@@ -7,6 +7,17 @@ function esc(s: string) {
     .replace(/'/g, '&#39;')
 }
 
+/** "Criterion (n/m): feedback" → bold label + body */
+function formatBulletInner(raw: string): string {
+  const t = raw.trim()
+  const m = t.match(/^(.+?)\s*\((\d+)\s*\/\s*(\d+)\)\s*:\s*(.*)$/)
+  if (m) {
+    const body = m[4].trim()
+    return `<strong>${esc(m[1].trim())} (${m[2]}/${m[3]}):</strong>${body ? ` ${esc(body)}` : ''}`
+  }
+  return esc(t)
+}
+
 /**
  * If the model returns plain text instead of HTML, convert it into readable HTML.
  * This keeps the nice visual design while restoring clean formatting.
@@ -17,7 +28,7 @@ export function reportTextToHtml(raw: string): string {
 
   // If it already looks like HTML, keep it.
   if (/<\s*(div|h3|p|ul|li|table|thead|tbody|tr|th|td|blockquote|strong)\b/i.test(text)) {
-    return text
+    return `<div class="final-report-html">${text}</div>`
   }
 
   const lines = text.split(/\r?\n/).map((l) => l.trimEnd())
@@ -58,7 +69,10 @@ export function reportTextToHtml(raw: string): string {
       /^\d+\.\s/.test(line)
     ) {
       closeList()
-      out.push(`<h3>${esc(line)}</h3>`)
+      let h3Class = 'fr-meta'
+      if (/^POST-NEGOTIATION EVALUATION REPORT$/i.test(line)) h3Class = 'fr-title'
+      else if (/^\d+\.\s/.test(line)) h3Class = 'fr-section'
+      out.push(`<h3 class="${h3Class}">${esc(line)}</h3>`)
 
       // SCORE SUMMARY table block (pipe-delimited rows)
       if (/^SCORE SUMMARY$/i.test(line)) {
@@ -88,7 +102,9 @@ export function reportTextToHtml(raw: string): string {
     // Candidate/overall score lines
     if (/^(Candidate|Overall Score):/i.test(line)) {
       closeList()
-      out.push(`<p><strong>${esc(line.split(':')[0])}:</strong>${esc(line.slice(line.indexOf(':') + 1))}</p>`)
+      out.push(
+        `<p><strong>${esc(line.split(':')[0])}:</strong> ${esc(line.slice(line.indexOf(':') + 1).trim())}</p>`
+      )
       i++
       continue
     }
@@ -96,7 +112,8 @@ export function reportTextToHtml(raw: string): string {
     // Bullet-like lines
     if (/^[-*•]\s+/.test(line)) {
       openList()
-      out.push(`<li>${esc(line.replace(/^[-*•]\s+/, ''))}</li>`)
+      const inner = line.replace(/^[-*•]\s+/, '')
+      out.push(`<li>${formatBulletInner(inner)}</li>`)
       i++
       continue
     }
@@ -108,6 +125,6 @@ export function reportTextToHtml(raw: string): string {
   }
 
   closeList()
-  return `<div>${out.join('')}</div>`
+  return `<div class="final-report-html">${out.join('')}</div>`
 }
 

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { sanitizeReportHtmlFragment } from '@/lib/sanitize-report-html'
+import { FINAL_REPORT_BODY_CSS } from '@/lib/final-report-body-css'
 import { isGibberishOrTroll } from '@/lib/gibberish'
 import { Button } from '@/components/ui/button'
 import {
@@ -456,6 +457,7 @@ export default function ChatPage() {
         .pill,.k,.meta,.subtitle,.footer{ color:#4b5563 !important; }
         .bubble-user{ background:#eff6ff !important; }
       }
+      ${FINAL_REPORT_BODY_CSS}
     </style>
   </head>
   <body>
@@ -578,8 +580,8 @@ export default function ChatPage() {
               </div>
             </div>
 
-            <div className="mt-3.5 rounded-[18px] border border-[rgba(148,163,184,.18)] bg-[rgba(15,23,42,.62)] p-4">
-              <h2 className="mb-3 text-[13px] font-medium uppercase tracking-[0.06em] text-[rgba(229,231,235,.92)]">
+            <div className="mt-3.5 rounded-[18px] border border-[rgba(148,163,184,.18)] bg-[rgba(15,23,42,.62)] p-5 sm:p-6">
+              <h2 className="mb-4 text-[13px] font-medium uppercase tracking-[0.06em] text-[rgba(229,231,235,.92)]">
                 Evaluation summary
               </h2>
               {finalReportGenerating && (
@@ -587,7 +589,7 @@ export default function ChatPage() {
               )}
               {!finalReportGenerating && finalReportHtml && (
                 <div
-                  className="prose prose-sm max-w-none text-[#e5e7eb] prose-headings:text-[#e5e7eb] prose-p:text-[#e5e7eb] prose-li:text-[#e5e7eb] prose-strong:text-[#e5e7eb] prose-blockquote:border-[#60a5fa] prose-blockquote:text-[#cbd5e1]"
+                  className="max-w-none"
                   dangerouslySetInnerHTML={{
                     __html: sanitizeReportHtmlFragment(finalReportHtml),
                   }}
