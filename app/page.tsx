@@ -41,6 +41,7 @@ export default function ChatPage() {
   const [showFinalReport, setShowFinalReport] = useState(false)
   const [trollStrikes, setTrollStrikes] = useState(0)
   const [finalReportSessionAt, setFinalReportSessionAt] = useState<string | null>(null)
+  const [autoDebriefTriggered, setAutoDebriefTriggered] = useState(false)
   const [userName, setUserName] = useState('')
   const [nameInput, setNameInput] = useState('')
   const [nameSubmitted, setNameSubmitted] = useState(false)
@@ -61,6 +62,38 @@ export default function ChatPage() {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Auto-end scenario when the assistant clearly concludes (agreement or walk-away),
+  // so the user doesn't need to press "End Negotiation".
+  useEffect(() => {
+    if (autoDebriefTriggered) return
+    if (debriefStarted) return
+    if (showFinalReport) return
+    if (isLoading) return
+    if (messages.length < 6) return
+
+    const last = [...messages].reverse().find((m) => m.role === 'assistant')
+    if (!last) return
+    const text = last.parts
+      .filter((p) => p.type === 'text')
+      .map((p) => (p as { type: 'text'; text: string }).text)
+      .join('')
+      .toLowerCase()
+
+    const concluded =
+      /we['’]ve reached a decision/.test(text) ||
+      /let['’]s pause here/.test(text) ||
+      /i(?:’|')ll proceed with the pivot/.test(text) ||
+      /no agreement/i.test(text) ||
+      /i wish you well/i.test(text) ||
+      /end (?:the )?negotiation/i.test(text)
+
+    if (!concluded) return
+
+    setAutoDebriefTriggered(true)
+    setDebriefStarted(true)
+    sendMessage({ text: 'END_DEBRIEF_TRIGGER' })
+  }, [autoDebriefTriggered, debriefStarted, isLoading, messages, sendMessage, showFinalReport])
 
   useEffect(() => {
     if (!debriefStarted) return

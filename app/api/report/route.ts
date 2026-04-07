@@ -1,6 +1,7 @@
 import { generateText, UIMessage } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { sanitizeReportHtmlFragment } from '@/lib/sanitize-report-html'
+import { reportTextToHtml } from '@/lib/report-text-to-html'
 
 const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -148,7 +149,8 @@ export async function POST(req: Request) {
       temperature: 0.4,
     })
 
-    const html = sanitizeReportHtmlFragment(result.text || '')
+    const cleaned = sanitizeReportHtmlFragment(result.text || '')
+    const html = reportTextToHtml(cleaned)
     return Response.json({ html })
   } catch {
     return Response.json(
