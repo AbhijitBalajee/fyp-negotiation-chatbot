@@ -41,6 +41,7 @@ export default function ChatPage() {
   const [finalReportGenerating, setFinalReportGenerating] = useState(false)
   const [showFinalReport, setShowFinalReport] = useState(false)
   const [trollStrikes, setTrollStrikes] = useState(0)
+  const [clarityStrikes, setClarityStrikes] = useState(0)
   const [finalReportSessionAt, setFinalReportSessionAt] = useState<string | null>(null)
   const [autoDebriefTriggered, setAutoDebriefTriggered] = useState(false)
   const [pendingAutoDebrief, setPendingAutoDebrief] = useState(false)
@@ -175,6 +176,33 @@ export default function ChatPage() {
       ? crypto.randomUUID()
       : `m-${Date.now()}-${Math.random().toString(16).slice(2)}`
 
+  const isLowClarityMessage = (raw: string) => {
+    const t = raw.trim()
+    if (!t) return true
+    // Allow common short but meaningful controls/commands.
+    const lower = t.toLowerCase()
+    const allowedShort =
+      lower === 'yes' ||
+      lower === 'no' ||
+      lower === 'ok' ||
+      lower === 'okay' ||
+      lower === 'thanks' ||
+      lower === 'thank you' ||
+      lower === 'continue' ||
+      lower === 'resume' ||
+      lower === 'go back' ||
+      lower.includes('begin debrief') ||
+      lower.includes('end negotiation') ||
+      lower.includes('end conversation')
+    if (allowedShort) return false
+
+    // If it's very short, it frequently causes the model to guess/derail.
+    const words = t.split(/\s+/).filter(Boolean)
+    if (t.length < 10) return true
+    if (words.length < 4) return true
+    return false
+  }
+
   const resetCaseStudySession = () => {
     setMessages([])
     setDebriefStarted(false)
@@ -187,6 +215,7 @@ export default function ChatPage() {
     setShowFinalReport(false)
     setFinalReportSessionAt(null)
     setTrollStrikes(0)
+    setClarityStrikes(0)
     setInput('')
     setShowRoleSheet(false)
     setShowCaseStudy(false)
@@ -244,6 +273,68 @@ export default function ChatPage() {
       return
     }
 
+    // Clear-communication enforcement: if the user keeps sending vague/unclear messages,
+    // issue firm warnings and end the session with a final report.
+    if (!debriefStarted && isLowClarityMessage(input)) {
+      const strike = clarityStrikes + 1
+      setClarityStrikes(strike)
+      const uidUser = newId()
+      const uidBot = newId()
+      const userText = input
+      setInput('')
+
+      const warnings: Record<number, string> = {
+        1: `**WARNING (1/3):** Your message is too unclear to evaluate. Write a complete sentence (1–2 lines) with a specific request or counterproposal.`,
+        2: `**WARNING (2/3):** Still unclear. Be specific: state (a) what you want, (b) why, and (c) what you can offer in return.`,
+        3: `**FINAL WARNING (3/3):** One more unclear message will end this session and generate your final report.`,
+      }
+
+      if (strike >= 4) {
+        const nextMessages = [
+          ...messages,
+          {
+            id: uidUser,
+            role: 'user' as const,
+            parts: [{ type: 'text' as const, text: userText }],
+          },
+          {
+            id: uidBot,
+            role: 'assistant' as const,
+            parts: [
+              {
+                type: 'text' as const,
+                text: `**SESSION ENDED:** You repeatedly sent unclear messages. I’m ending the session and generating your final report based on what you wrote so far.`,
+              },
+            ],
+          },
+        ]
+        setMessages(nextMessages)
+        setDebriefStarted(true)
+        generateFinalReportNow(nextMessages)
+        return
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: uidUser,
+          role: 'user' as const,
+          parts: [{ type: 'text' as const, text: userText }],
+        },
+        {
+          id: uidBot,
+          role: 'assistant' as const,
+          parts: [
+            {
+              type: 'text' as const,
+              text: warnings[strike] ?? warnings[1],
+            },
+          ],
+        },
+      ])
+      return
+    }
+
     if (isGibberishOrTroll(input, { debriefMode: debriefStarted })) {
       const strike = trollStrikes + 1
       setTrollStrikes(strike)
@@ -278,10 +369,10 @@ export default function ChatPage() {
       }
 
       const warnings: Record<number, string> = {
-        1: 'Please stay on task. Messages need to be clear and relevant to the negotiation exercise.',
-        2: 'Another reminder: keep your contributions serious and related to the scenario. Continued disruption will end the session and generate your final report.',
-        3: 'Formal warning. Two more unproductive messages will end the session and generate your final report.',
-        4: 'Final warning. The next unproductive message will end the session and generate your final report.',
+        1: '**WARNING (1/5):** Stay on task. Messages must be clear and relevant to the negotiation exercise.',
+        2: '**WARNING (2/5):** Keep your contributions serious and related to the scenario. Continued disruption will end the session and generate your final report.',
+        3: '**FORMAL WARNING (3/5):** Two more unproductive messages will end the session and generate your final report.',
+        4: '**FINAL WARNING (4/5):** The next unproductive message will end the session and generate your final report.',
       }
       setMessages((prev) => [
         ...prev,
@@ -655,7 +746,7 @@ export default function ChatPage() {
                 type="button"
                 variant="default"
                 onClick={downloadFinalReport}
-                disabled={finalReportGenerating}
+                disabled={finalReportGenerating || !finalReportHtml}
               >
                 <FileDown className="mr-2 h-4 w-4" />
                 Download Final Report (.html)
@@ -1070,7 +1161,17 @@ export default function ChatPage() {
                       'rounded-2xl px-4 py-3 max-w-[85%] border shadow-sm',
                       message.role === 'user'
                         ? 'bg-gradient-to-b from-primary to-primary/90 text-primary-foreground border-primary/25'
-                        : 'bg-background/55 text-foreground border-border/70 backdrop-blur'
+                        : (() => {
+                            const text = message.parts
+                              .filter((p) => p.type === 'text')
+                              .map((p) => (p as { type: 'text'; text: string }).text)
+                              .join('')
+                              .toUpperCase()
+                            const isWarning = text.includes('WARNING') || text.includes('SESSION ENDED')
+                            return isWarning
+                              ? 'bg-destructive/10 text-foreground border-destructive/35 backdrop-blur'
+                              : 'bg-background/55 text-foreground border-border/70 backdrop-blur'
+                          })()
                     )}
                   >
                     <div className="prose prose-sm dark:prose-invert max-w-none">
@@ -1192,6 +1293,7 @@ export default function ChatPage() {
                   size="sm"
                   className="flex items-center gap-2 font-medium"
                   onClick={downloadFinalReport}
+                  disabled={!finalReportHtml || finalReportGenerating}
                 >
                   <FileDown className="h-4 w-4" />
                   Download Final Report
@@ -1223,7 +1325,11 @@ export default function ChatPage() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                The final report is a styled HTML file you can print/save as PDF.
+                {finalReportGenerating
+                  ? 'Generating your final report…'
+                  : finalReportHtml
+                    ? 'The final report is a styled HTML file you can print/save as PDF.'
+                    : 'Finish the debrief (3 answers) or end the session to generate the final report.'}
               </p>
             </div>
           )}
