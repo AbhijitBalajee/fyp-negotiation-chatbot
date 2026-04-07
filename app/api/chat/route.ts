@@ -6,9 +6,7 @@ import {
 } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 
-const openai = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 export const maxDuration = 30
 
@@ -179,6 +177,20 @@ export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json()
 
   try {
+    if (!process.env.OPENAI_API_KEY) {
+      return new Response(
+        [
+          `I can’t generate a reply because the OpenAI API key is missing.`,
+          ``,
+          `Fix: create a file named ".env.local" in the project root and add:`,
+          `OPENAI_API_KEY=your_key_here`,
+          ``,
+          `Then restart the dev server.`,
+        ].join('\n'),
+        { status: 200, headers: { 'content-type': 'text/plain; charset=utf-8' } }
+      )
+    }
+
     const result = streamText({
       model: openai.responses('gpt-4o'),
       system: SYSTEM_PROMPT,

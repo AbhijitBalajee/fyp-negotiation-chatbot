@@ -346,7 +346,16 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="relative flex flex-col h-screen overflow-hidden bg-background">
+      {/* Ambient background (more visible, less "plain") */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10"
+      >
+        <div className="absolute -top-28 left-[-15%] h-[420px] w-[420px] rounded-full bg-primary/12 blur-3xl" />
+        <div className="absolute top-10 right-[-10%] h-[520px] w-[520px] rounded-full bg-indigo-500/10 blur-3xl" />
+        <div className="absolute bottom-[-18%] left-[15%] h-[520px] w-[520px] rounded-full bg-fuchsia-500/10 blur-3xl" />
+      </div>
       {/* Final Report Modal (auto-opens after Q3) */}
       {showFinalReport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -617,7 +626,7 @@ export default function ChatPage() {
       )}
 
       {/* Header */}
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border/60 bg-background/75 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border/60 bg-background/65 px-4 py-4 backdrop-blur-xl supports-[backdrop-filter]:bg-background/55">
         <div className="w-10" />
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
@@ -703,31 +712,42 @@ export default function ChatPage() {
 
           {/* Step 1: Name capture */}
           {!nameSubmitted ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/70 border shadow-sm mb-6">
-                <Bot className="h-8 w-8 text-muted-foreground" />
+            <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-center">
+              <div className="w-full max-w-lg rounded-3xl border bg-background/55 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.12)] p-6 sm:p-8">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 border border-primary/15 shadow-sm mb-5">
+                  <Bot className="h-7 w-7 text-primary" />
+                </div>
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+                  Negotiation Coach
+                </h2>
+                <p className="text-muted-foreground mt-2">
+                  Practise a realistic supervisor negotiation and get structured feedback.
+                </p>
+                <div className="mt-6">
+                  <p className="text-sm font-medium text-foreground mb-2">What&apos;s your name?</p>
+                  <form onSubmit={handleNameSubmit} className="flex flex-col items-center gap-3 w-full">
+                    <input
+                      suppressHydrationWarning
+                      ref={nameInputRef}
+                      type="text"
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      placeholder="e.g., Skylar"
+                      className={cn(
+                        'w-full rounded-xl border border-input bg-background/70 px-4 py-3 text-center shadow-sm',
+                        'text-foreground placeholder:text-muted-foreground',
+                        'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
+                      )}
+                    />
+                    <Button type="submit" className="w-full" disabled={!nameInput.trim()}>
+                      Continue
+                    </Button>
+                  </form>
+                </div>
+                <p className="mt-5 text-xs text-muted-foreground">
+                  Tip: You can end the negotiation anytime and generate a final evaluation report.
+                </p>
               </div>
-              <h2 className="text-xl font-semibold text-foreground mb-2">Welcome to Negotiation Coach</h2>
-              <p className="text-muted-foreground max-w-sm mb-8">
-                Before we begin, what&apos;s your name?
-              </p>
-              <form onSubmit={handleNameSubmit} className="flex flex-col items-center gap-3 w-full max-w-xs">
-                <input
-                  ref={nameInputRef}
-                  type="text"
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  placeholder="Enter your name"
-                  className={cn(
-                    'w-full rounded-xl border border-input bg-background/70 px-4 py-3 text-center shadow-sm',
-                    'text-foreground placeholder:text-muted-foreground',
-                    'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
-                  )}
-                />
-                <Button type="submit" className="w-full" disabled={!nameInput.trim()}>
-                  Continue
-                </Button>
-              </form>
             </div>
           ) : messages.length === 0 ? (
             /* Step 2: Welcome + mode buttons */
@@ -744,7 +764,7 @@ export default function ChatPage() {
               <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg justify-center">
                 <Button
                   variant="default"
-                  className="h-auto py-4 px-6 flex-1 max-w-xs"
+                  className="h-auto py-4 px-6 flex-1 max-w-xs shadow-sm"
                   onClick={() => setShowRoleSheet(true)}
                 >
                   <div className="flex flex-col items-center gap-1">
@@ -754,7 +774,7 @@ export default function ChatPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="h-auto py-4 px-6 flex-1 max-w-xs"
+                  className="h-auto py-4 px-6 flex-1 max-w-xs bg-background/60 shadow-sm"
                   onClick={() => {
                     sendMessage({
                       text: `Before starting the negotiation, please give me a quick breakdown of key negotiation concepts to guide my strategy. Cover the following 7 elements:\n\n1. **Interests** – Understanding goals and priorities\n2. **Options** – Brainstorming possible solutions\n3. **Alternatives (BATNA)** – Best alternatives if negotiation fails\n4. **Legitimacy** – Fair standards, precedents, or objective criteria\n5. **Communication** – Expressing needs clearly and listening actively\n6. **Relationship** – Maintaining trust and positive rapport\n7. **Commitment** – Working toward mutually acceptable agreements\n\nPlease explain each concept briefly so I can use this framework during the scenario.`,
@@ -788,8 +808,8 @@ export default function ChatPage() {
                     className={cn(
                       'rounded-2xl px-4 py-3 max-w-[85%] border shadow-sm',
                       message.role === 'user'
-                        ? 'bg-primary text-primary-foreground border-primary/20'
-                        : 'bg-muted/70 text-foreground border-border/70'
+                        ? 'bg-gradient-to-b from-primary to-primary/90 text-primary-foreground border-primary/25'
+                        : 'bg-background/55 text-foreground border-border/70 backdrop-blur'
                     )}
                   >
                     <div className="prose prose-sm dark:prose-invert max-w-none">
@@ -835,14 +855,14 @@ export default function ChatPage() {
 
       {/* Input — only show after name is submitted and chat has started */}
       {nameSubmitted && messages.length > 0 && (
-        <footer className="border-t border-border bg-background p-4">
+        <footer className="border-t border-border/60 bg-background/65 p-4 backdrop-blur-xl supports-[backdrop-filter]:bg-background/55">
           {/* Action buttons row */}
           <div className="mx-auto mb-3 flex max-w-3xl items-center gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-background/60 shadow-sm"
               onClick={() => setShowCaseStudy(true)}
             >
               <Eye className="h-3.5 w-3.5" />
@@ -852,7 +872,7 @@ export default function ChatPage() {
               type="button"
               variant="outline"
               size="sm"
-              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-background/60 shadow-sm"
               onClick={() => setShowObjectives(true)}
             >
               <Eye className="h-3.5 w-3.5" />
@@ -863,7 +883,7 @@ export default function ChatPage() {
               type="button"
               variant="outline"
               size="sm"
-              className="flex items-center gap-1.5 text-xs font-medium text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+              className="flex items-center gap-1.5 text-xs font-medium text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive bg-background/60 shadow-sm"
               onClick={() => {
                 setDebriefStarted(true)
                 sendMessage({ text: 'END_DEBRIEF_TRIGGER' })
