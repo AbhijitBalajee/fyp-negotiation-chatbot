@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
+import { sanitizeReportHtmlFragment } from '@/lib/sanitize-report-html'
+import { isGibberishOrTroll } from '@/lib/gibberish'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -37,7 +39,8 @@ export default function ChatPage() {
   const [finalReportHtml, setFinalReportHtml] = useState<string | null>(null)
   const [finalReportGenerating, setFinalReportGenerating] = useState(false)
   const [showFinalReport, setShowFinalReport] = useState(false)
-  const [finalReportAutoDownloaded, setFinalReportAutoDownloaded] = useState(false)
+  const [trollStrikes, setTrollStrikes] = useState(0)
+  const [finalReportSessionAt, setFinalReportSessionAt] = useState<string | null>(null)
   const [userName, setUserName] = useState('')
   const [nameInput, setNameInput] = useState('')
   const [nameSubmitted, setNameSubmitted] = useState(false)
@@ -45,7 +48,7 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
 
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, setMessages, status } = useChat({
     transport: new DefaultChatTransport({ api: '/api/chat' }),
   })
 
@@ -88,6 +91,8 @@ export default function ChatPage() {
 
     if (userAnswersCount < 3) return
 
+    setShowFinalReport(true)
+    setFinalReportSessionAt(new Date().toLocaleString())
     setFinalReportGenerating(true)
     fetch('/api/report', {
       method: 'POST',
@@ -97,8 +102,7 @@ export default function ChatPage() {
       .then(async (res) => {
         if (!res.ok) throw new Error('Failed to generate report')
         const data = (await res.json()) as { html: string }
-        setFinalReportHtml(data.html)
-        setShowFinalReport(true)
+        setFinalReportHtml(sanitizeReportHtmlFragment(data.html))
       })
       .catch(() => {
         // If report generation fails, we still let them download the plain transcript report.
@@ -106,16 +110,6 @@ export default function ChatPage() {
       })
       .finally(() => setFinalReportGenerating(false))
   }, [debriefStarted, finalReportHtml, finalReportGenerating, messages, userName])
-
-  // Auto-download the final report once, right after it's generated (after Q3).
-  useEffect(() => {
-    if (!showFinalReport) return
-    if (!finalReportHtml) return
-    if (finalReportGenerating) return
-    if (finalReportAutoDownloaded) return
-    downloadFinalReport()
-    setFinalReportAutoDownloaded(true)
-  }, [showFinalReport, finalReportHtml, finalReportGenerating, finalReportAutoDownloaded])
 
   useEffect(() => {
     if (!nameSubmitted) {
@@ -128,6 +122,25 @@ export default function ChatPage() {
     if (!nameInput.trim()) return
     setUserName(nameInput.trim())
     setNameSubmitted(true)
+  }
+
+  const newId = () =>
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `m-${Date.now()}-${Math.random().toString(16).slice(2)}`
+
+  const resetCaseStudySession = () => {
+    setMessages([])
+    setDebriefStarted(false)
+    setFinalReportHtml(null)
+    setFinalReportGenerating(false)
+    setShowFinalReport(false)
+    setFinalReportSessionAt(null)
+    setTrollStrikes(0)
+    setInput('')
+    setShowRoleSheet(false)
+    setShowCaseStudy(false)
+    setShowObjectives(false)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -143,6 +156,51 @@ export default function ChatPage() {
       setDebriefStarted(true)
       sendMessage({ text: 'END_DEBRIEF_TRIGGER' })
       setInput('')
+      return
+    }
+
+    if (isGibberishOrTroll(input, { debriefMode: debriefStarted })) {
+      const strike = trollStrikes + 1
+      setTrollStrikes(strike)
+      const uidUser = newId()
+      const uidBot = newId()
+      const userText = input
+      setInput('')
+
+      if (strike >= 5) {
+        setMessages((prev) => [
+          ...prev,
+          { id: uidUser, role: 'user', parts: [{ type: 'text', text: userText }] },
+          {
+            id: uidBot,
+            role: 'assistant',
+            parts: [
+              {
+                type: 'text',
+                text: 'This session is being reset. Please take the exercise seriously—restart from the beginning when you are ready to participate constructively.',
+              },
+            ],
+          },
+        ])
+        window.setTimeout(() => resetCaseStudySession(), 900)
+        return
+      }
+
+      const warnings: Record<number, string> = {
+        1: 'Please stay on task. Messages need to be clear and relevant to the negotiation exercise.',
+        2: 'Another reminder: keep your contributions serious and related to the scenario. Continued disruption will end the session.',
+        3: 'This is a formal warning. One more unproductive message will restart your case study from the beginning.',
+        4: 'Final warning. The next unproductive message will reset your session.',
+      }
+      setMessages((prev) => [
+        ...prev,
+        { id: uidUser, role: 'user', parts: [{ type: 'text', text: userText }] },
+        {
+          id: uidBot,
+          role: 'assistant',
+          parts: [{ type: 'text', text: warnings[strike] ?? warnings[1] }],
+        },
+      ])
       return
     }
 
@@ -226,10 +284,11 @@ export default function ChatPage() {
       })
       .join('\n')
 
-    const coachingSection = finalReportHtml
+    const safeEval = sanitizeReportHtmlFragment(finalReportHtml || '')
+    const coachingSection = safeEval
       ? `<div class="card" style="margin-top:14px">
            <h2>Evaluation summary</h2>
-           ${finalReportHtml}
+           ${safeEval}
          </div>`
       : `<div class="card" style="margin-top:14px">
            <h2>Evaluation summary</h2>
@@ -367,51 +426,139 @@ export default function ChatPage() {
         <div className="absolute top-10 right-[-10%] h-[520px] w-[520px] rounded-full bg-indigo-500/10 blur-3xl" />
         <div className="absolute bottom-[-18%] left-[15%] h-[520px] w-[520px] rounded-full bg-fuchsia-500/10 blur-3xl" />
       </div>
-      {/* Final Report Modal (auto-opens after Q3) */}
+      {/* Full-screen final report (same layout as downloadable HTML, view in-app after Q3) */}
       {showFinalReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-background rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 sm:p-8">
-              <div className="text-center mb-6">
-                <h2 className="text-lg font-bold text-foreground uppercase tracking-wide">
-                  Final Evaluation Report
-                </h2>
-                <p className="text-xs text-muted-foreground italic mt-1">
-                  Generated after your debrief responses
-                </p>
-              </div>
-
-              {finalReportGenerating && (
-                <p className="text-sm text-muted-foreground text-center">
-                  Generating your report…
-                </p>
-              )}
-
-              {!finalReportGenerating && finalReportHtml && (
-                <div className="text-sm text-muted-foreground text-center">
-                  Your final report is ready. It will download automatically (you can download again below).
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#0b0f19] text-[#e5e7eb]">
+          <div
+            className="pointer-events-none fixed inset-0 -z-10"
+            aria-hidden
+            style={{
+              background:
+                'radial-gradient(1200px 600px at 15% 0%, rgba(96,165,250,.16), transparent 55%), radial-gradient(900px 600px at 85% 10%, rgba(167,139,250,.12), transparent 60%), #0b0f19',
+            }}
+          />
+          <div className="mx-auto max-w-[940px] px-[18px] pb-28 pt-10">
+            <div className="overflow-hidden rounded-[18px] border border-[rgba(148,163,184,.18)] bg-gradient-to-b from-[rgba(15,23,42,.9)] to-[rgba(15,23,42,.75)] p-[18px]">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h1 className="text-lg font-semibold tracking-wide text-[#e5e7eb]">
+                    Negotiation Coach — Final Report
+                  </h1>
+                  <p className="mt-1.5 text-xs leading-relaxed text-[#94a3b8]">
+                    A clean, printable record of your negotiation session.
+                  </p>
                 </div>
-              )}
+                <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(148,163,184,.18)] px-2.5 py-2 text-xs text-[#94a3b8]">
+                  Student:{' '}
+                  <strong className="font-semibold text-[#e5e7eb]">{userName}</strong>
+                </div>
+              </div>
+              <div className="mt-3.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                <div className="rounded-[18px] border border-[rgba(148,163,184,.18)] bg-[rgba(15,23,42,.62)] p-4">
+                  <h2 className="mb-2 text-[13px] font-medium uppercase tracking-[0.06em] text-[rgba(229,231,235,.92)]">
+                    Session details
+                  </h2>
+                  <div className="grid grid-cols-[160px_1fr] gap-x-2.5 gap-y-2 text-[13px]">
+                    <span className="text-[#94a3b8]">Date</span>
+                    <span>{finalReportSessionAt ?? new Date().toLocaleString()}</span>
+                    <span className="text-[#94a3b8]">App</span>
+                    <span>Negotiation Coach</span>
+                  </div>
+                </div>
+                <div className="rounded-[18px] border border-[rgba(148,163,184,.18)] bg-[rgba(15,23,42,.62)] p-4">
+                  <h2 className="mb-2 text-[13px] font-medium uppercase tracking-[0.06em] text-[rgba(229,231,235,.92)]">
+                    How to use
+                  </h2>
+                  <div className="grid grid-cols-[160px_1fr] gap-x-2.5 gap-y-2 text-[13px]">
+                    <span className="text-[#94a3b8]">Print/PDF</span>
+                    <span>Use your browser’s print dialog to save as PDF.</span>
+                    <span className="text-[#94a3b8]">Notes</span>
+                    <span>Internal trigger messages are excluded from this report.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
+            <div className="mt-3.5 rounded-[18px] border border-[rgba(148,163,184,.18)] bg-[rgba(15,23,42,.62)] p-4">
+              <h2 className="mb-3 text-[13px] font-medium uppercase tracking-[0.06em] text-[rgba(229,231,235,.92)]">
+                Evaluation summary
+              </h2>
+              {finalReportGenerating && (
+                <p className="text-sm text-[#94a3b8]">Generating your report…</p>
+              )}
+              {!finalReportGenerating && finalReportHtml && (
+                <div
+                  className="prose prose-sm max-w-none text-[#e5e7eb] prose-headings:text-[#e5e7eb] prose-p:text-[#e5e7eb] prose-li:text-[#e5e7eb] prose-strong:text-[#e5e7eb] prose-blockquote:border-[#60a5fa] prose-blockquote:text-[#cbd5e1]"
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeReportHtmlFragment(finalReportHtml),
+                  }}
+                />
+              )}
               {!finalReportGenerating && !finalReportHtml && (
-                <p className="text-sm text-muted-foreground text-center">
-                  Couldn’t generate the report right now. You can still download the transcript.
+                <p className="text-sm text-[#94a3b8]">
+                  Couldn’t generate the report right now. You can still download the transcript from the chat
+                  screen.
                 </p>
               )}
+            </div>
 
-              <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-                <Button variant="outline" onClick={() => setShowFinalReport(false)} className="px-6">
-                  Close
-                </Button>
-                <Button
-                  variant="default"
-                  onClick={downloadFinalReport}
-                  className="px-6"
-                  disabled={finalReportGenerating}
-                >
-                  Download Final Report
-                </Button>
+            <div className="mt-3.5 rounded-[18px] border border-[rgba(148,163,184,.18)] bg-[rgba(15,23,42,.62)] p-4">
+              <h2 className="mb-3 text-[13px] font-medium uppercase tracking-[0.06em] text-[rgba(229,231,235,.92)]">
+                Transcript
+              </h2>
+              <div className="space-y-3.5">
+                {messages.map((msg) => {
+                  const text = msg.parts
+                    .filter((p) => p.type === 'text')
+                    .map((p) => (p as { type: 'text'; text: string }).text)
+                    .join('')
+                  if (text.trim() === 'END_DEBRIEF_TRIGGER') return null
+                  const role =
+                    msg.role === 'user'
+                      ? `${userName} (Student)`
+                      : 'Negotiation Coach (Professor Pablo / Facilitator)'
+                  const isUser = msg.role === 'user'
+                  return (
+                    <div key={msg.id}>
+                      <div className="mb-1.5 text-xs text-[#94a3b8]">{role}</div>
+                      <div
+                        className={cn(
+                          'rounded-2xl border px-3 py-3 text-[13px] leading-relaxed',
+                          isUser
+                            ? 'border-[rgba(96,165,250,.35)] bg-gradient-to-b from-[rgba(37,99,235,.9)] to-[rgba(37,99,235,.75)] text-white'
+                            : 'border-[rgba(148,163,184,.18)] bg-[rgba(148,163,184,.12)] text-[#e5e7eb]'
+                        )}
+                      >
+                        <span className="whitespace-pre-wrap">{text}</span>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
+            </div>
+
+            <p className="mt-3.5 text-center text-xs text-[#94a3b8]">Generated by Negotiation Coach</p>
+          </div>
+
+          <div className="fixed bottom-0 left-0 right-0 z-[61] border-t border-[rgba(148,163,184,.18)] bg-[#0b0f19]/90 px-4 py-3 backdrop-blur">
+            <div className="mx-auto flex max-w-[940px] flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-[rgba(148,163,184,.35)] bg-transparent text-[#e5e7eb] hover:bg-[rgba(148,163,184,.12)]"
+                onClick={() => setShowFinalReport(false)}
+              >
+                Back to chat
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                onClick={downloadFinalReport}
+                disabled={finalReportGenerating}
+              >
+                <FileDown className="mr-2 h-4 w-4" />
+                Download Final Report (.html)
+              </Button>
             </div>
           </div>
         </div>
@@ -692,7 +839,9 @@ export default function ChatPage() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
-                  if (finalReportHtml) setShowFinalReport(true)
+                  if (!finalReportHtml) return
+                  setFinalReportSessionAt((t) => t ?? new Date().toLocaleString())
+                  setShowFinalReport(true)
                 }}
                 data-disabled={!finalReportHtml}
               >
@@ -951,7 +1100,11 @@ export default function ChatPage() {
                   variant="outline"
                   size="sm"
                   className="flex items-center gap-2 font-medium"
-                  onClick={() => setShowFinalReport(true)}
+                  onClick={() => {
+                    if (!finalReportHtml) return
+                    setFinalReportSessionAt((t) => t ?? new Date().toLocaleString())
+                    setShowFinalReport(true)
+                  }}
                   disabled={!finalReportHtml}
                 >
                   <FileDown className="h-4 w-4" />

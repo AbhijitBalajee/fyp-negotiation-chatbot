@@ -1,5 +1,6 @@
 import { generateText, UIMessage } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
+import { sanitizeReportHtmlFragment } from '@/lib/sanitize-report-html'
 
 const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -16,7 +17,9 @@ Generate an evaluation report that matches the REQUIRED structure below.
 
 Critical rules:
 - Ground everything in what was actually said in the transcript.
-- If information is missing, say "Not evidenced in transcript" rather than inventing facts.
+- The transcript usually contains (1) a negotiation role-play segment and (2) optional debrief Q&A at the end. Score negotiation skills primarily from the negotiation segment where the student is negotiating as Skylar with Professor Pablo. Use debrief answers only as supplementary evidence—do not assign near-zero scores across the board just because the debrief section is brief.
+- Use "Not evidenced in transcript" only when that specific sub-criterion truly cannot be supported by any substantive student turns in the negotiation (or clear debrief evidence). Prefer specific observations tied to quotes over generic boilerplate.
+- If the negotiation portion is very short or missing, state that explicitly once and score conservatively based on what exists—avoid repeating "Not evidenced" for every line.
 - Be honest, direct, and constructive.
 - Avoid long essays; keep each justification compact.
 - Do NOT output a template. Compute real numeric scores from the transcript.
@@ -145,13 +148,7 @@ export async function POST(req: Request) {
       temperature: 0.4,
     })
 
-    // The model sometimes wraps HTML in markdown code fences. Strip them defensively.
-    const raw = (result.text || '').trim()
-    const html = raw
-      .replace(/^```html\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/```$/i, '')
-      .trim()
+    const html = sanitizeReportHtmlFragment(result.text || '')
     return Response.json({ html })
   } catch {
     return Response.json(
