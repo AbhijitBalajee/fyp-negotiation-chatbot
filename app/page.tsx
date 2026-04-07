@@ -42,6 +42,7 @@ export default function ChatPage() {
   const [trollStrikes, setTrollStrikes] = useState(0)
   const [finalReportSessionAt, setFinalReportSessionAt] = useState<string | null>(null)
   const [autoDebriefTriggered, setAutoDebriefTriggered] = useState(false)
+  const [pendingAutoDebrief, setPendingAutoDebrief] = useState(false)
   const [userName, setUserName] = useState('')
   const [nameInput, setNameInput] = useState('')
   const [nameSubmitted, setNameSubmitted] = useState(false)
@@ -54,6 +55,7 @@ export default function ChatPage() {
   })
 
   const isLoading = status === 'streaming' || status === 'submitted'
+  const pendingAutoDebriefTimerRef = useRef<number | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -62,6 +64,15 @@ export default function ChatPage() {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  const stripConclusionMarker = (text: string) =>
+    text
+      .split('\n')
+      .filter((l) => l.trim() !== 'NEGOTIATION_CONCLUDED')
+      .join('\n')
+
+  const assistantConcluded = (text: string) =>
+    text.split('\n').some((l) => l.trim() === 'NEGOTIATION_CONCLUDED')
 
   // Auto-end scenario when the assistant clearly concludes (agreement or walk-away),
   // so the user doesn't need to press "End Negotiation".
@@ -78,21 +89,39 @@ export default function ChatPage() {
       .filter((p) => p.type === 'text')
       .map((p) => (p as { type: 'text'; text: string }).text)
       .join('')
-      .toLowerCase()
+    const lower = text.toLowerCase()
+
+    // Preferred: explicit marker from the model
+    if (assistantConcluded(text)) {
+      setPendingAutoDebrief(true)
+      if (pendingAutoDebriefTimerRef.current) window.clearTimeout(pendingAutoDebriefTimerRef.current)
+      pendingAutoDebriefTimerRef.current = window.setTimeout(() => {
+        setAutoDebriefTriggered(true)
+        setPendingAutoDebrief(false)
+        setDebriefStarted(true)
+        sendMessage({ text: 'END_DEBRIEF_TRIGGER' })
+      }, 1200)
+      return
+    }
 
     const concluded =
-      /we['’]ve reached a decision/.test(text) ||
-      /let['’]s pause here/.test(text) ||
-      /i(?:’|')ll proceed with the pivot/.test(text) ||
-      /no agreement/i.test(text) ||
-      /i wish you well/i.test(text) ||
-      /end (?:the )?negotiation/i.test(text)
+      /we['’]ve reached a decision/.test(lower) ||
+      /let['’]s pause here/.test(lower) ||
+      /i(?:’|')ll proceed with the pivot/.test(lower) ||
+      /no agreement/.test(lower) ||
+      /i wish you well/.test(lower) ||
+      /end (?:the )?negotiation/.test(lower)
 
     if (!concluded) return
 
-    setAutoDebriefTriggered(true)
-    setDebriefStarted(true)
-    sendMessage({ text: 'END_DEBRIEF_TRIGGER' })
+    setPendingAutoDebrief(true)
+    if (pendingAutoDebriefTimerRef.current) window.clearTimeout(pendingAutoDebriefTimerRef.current)
+    pendingAutoDebriefTimerRef.current = window.setTimeout(() => {
+      setAutoDebriefTriggered(true)
+      setPendingAutoDebrief(false)
+      setDebriefStarted(true)
+      sendMessage({ text: 'END_DEBRIEF_TRIGGER' })
+    }, 1200)
   }, [autoDebriefTriggered, debriefStarted, isLoading, messages, sendMessage, showFinalReport])
 
   useEffect(() => {
@@ -148,6 +177,10 @@ export default function ChatPage() {
   const resetCaseStudySession = () => {
     setMessages([])
     setDebriefStarted(false)
+    setAutoDebriefTriggered(false)
+    setPendingAutoDebrief(false)
+    if (pendingAutoDebriefTimerRef.current) window.clearTimeout(pendingAutoDebriefTimerRef.current)
+    pendingAutoDebriefTimerRef.current = null
     setFinalReportHtml(null)
     setFinalReportGenerating(false)
     setShowFinalReport(false)
@@ -182,6 +215,23 @@ export default function ChatPage() {
     if (!input.trim() || isLoading) return
 
     const trimmed = input.trim().toLowerCase()
+
+    // If the negotiation just concluded and the user wants to keep going, cancel auto-debrief.
+    if (pendingAutoDebrief) {
+      const wantsContinue =
+        trimmed.includes('continue') ||
+        trimmed.includes('resume') ||
+        trimmed.includes('go back') ||
+        trimmed.includes('back to negotiation') ||
+        trimmed.includes('keep negotiating') ||
+        trimmed.includes('scenario')
+
+      if (wantsContinue) {
+        setPendingAutoDebrief(false)
+        if (pendingAutoDebriefTimerRef.current) window.clearTimeout(pendingAutoDebriefTimerRef.current)
+        pendingAutoDebriefTimerRef.current = null
+      }
+    }
     if (
       trimmed.includes('end conversation and begin debrief') ||
       trimmed.includes('end negotiation and begin debrief') ||
@@ -1026,7 +1076,7 @@ export default function ChatPage() {
                         if (part.type === 'text') {
                           return (
                             <span key={index} className="whitespace-pre-wrap">
-                              {part.text}
+                              {stripConclusionMarker(part.text)}
                             </span>
                           )
                         }
