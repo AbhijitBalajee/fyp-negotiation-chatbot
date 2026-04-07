@@ -182,14 +182,24 @@ export default function ChatPage() {
       ? crypto.randomUUID()
       : `m-${Date.now()}-${Math.random().toString(16).slice(2)}`
 
-  const isLowClarityMessage = (raw: string) => {
+  const isPolarQuestion = (assistantText: string) => {
+    const t = assistantText.trim().toLowerCase()
+    if (!t) return false
+    if (!t.includes('?')) return false
+    if (t.includes('yes or no') || t.includes('yes/no')) return true
+    // Heuristic: starts with auxiliary verb and contains a question mark.
+    return /^(do|did|does|is|are|was|were|can|could|will|would|have|has|had|should)\b/.test(t)
+  }
+
+  const isLowClarityMessage = (raw: string, ctx?: { lastAssistantText?: string }) => {
     const t = raw.trim()
     if (!t) return true
     // Allow common short but meaningful controls/commands.
     const lower = t.toLowerCase()
+    const lastAssistantText = ctx?.lastAssistantText ?? ''
+    const assistantAskedPolar = isPolarQuestion(lastAssistantText)
     const allowedShort =
-      lower === 'yes' ||
-      lower === 'no' ||
+      ((lower === 'yes' || lower === 'no') && assistantAskedPolar) ||
       lower === 'ok' ||
       lower === 'okay' ||
       lower === 'thanks' ||
@@ -201,6 +211,9 @@ export default function ChatPage() {
       lower.includes('end negotiation') ||
       lower.includes('end conversation')
     if (allowedShort) return false
+
+    // If user replies "yes/no" but assistant asked an open question, treat as low clarity.
+    if ((lower === 'yes' || lower === 'no') && !assistantAskedPolar) return true
 
     // If it's very short, it frequently causes the model to guess/derail.
     const words = t.split(/\s+/).filter(Boolean)
@@ -282,7 +295,15 @@ export default function ChatPage() {
 
     // Clear-communication enforcement: if the user keeps sending vague/unclear messages,
     // issue firm warnings and end the session with a final report.
-    if (!debriefStarted && isLowClarityMessage(input)) {
+    const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
+    const lastAssistantText =
+      lastAssistant?.parts
+        ?.filter((p) => p.type === 'text')
+        .map((p) => (p as { type: 'text'; text: string }).text)
+        .join('')
+        .trim() ?? ''
+
+    if (!debriefStarted && isLowClarityMessage(input, { lastAssistantText })) {
       const uidUser = newId()
       const userText = input
       setInput('')
