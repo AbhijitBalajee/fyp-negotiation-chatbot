@@ -91,24 +91,7 @@ export default function ChatPage() {
 
     if (userAnswersCount < 3) return
 
-    setShowFinalReport(true)
-    setFinalReportSessionAt(new Date().toLocaleString())
-    setFinalReportGenerating(true)
-    fetch('/api/report', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ userName, messages }),
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to generate report')
-        const data = (await res.json()) as { html: string }
-        setFinalReportHtml(sanitizeReportHtmlFragment(data.html))
-      })
-      .catch(() => {
-        // If report generation fails, we still let them download the plain transcript report.
-        setFinalReportHtml(null)
-      })
-      .finally(() => setFinalReportGenerating(false))
+    generateFinalReportNow(messages)
   }, [debriefStarted, finalReportHtml, finalReportGenerating, messages, userName])
 
   useEffect(() => {
@@ -143,6 +126,24 @@ export default function ChatPage() {
     setShowObjectives(false)
   }
 
+  const generateFinalReportNow = (sourceMessages = messages) => {
+    setShowFinalReport(true)
+    setFinalReportSessionAt(new Date().toLocaleString())
+    setFinalReportGenerating(true)
+    fetch('/api/report', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ userName, messages: sourceMessages }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed to generate report')
+        const data = (await res.json()) as { html: string }
+        setFinalReportHtml(sanitizeReportHtmlFragment(data.html))
+      })
+      .catch(() => setFinalReportHtml(null))
+      .finally(() => setFinalReportGenerating(false))
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
@@ -168,37 +169,52 @@ export default function ChatPage() {
       setInput('')
 
       if (strike >= 5) {
-        setMessages((prev) => [
-          ...prev,
-          { id: uidUser, role: 'user', parts: [{ type: 'text', text: userText }] },
+        const nextMessages = [
+          ...messages,
+          {
+            id: uidUser,
+            role: 'user' as const,
+            parts: [{ type: 'text' as const, text: userText }],
+          },
           {
             id: uidBot,
-            role: 'assistant',
+            role: 'assistant' as const,
             parts: [
               {
-                type: 'text',
-                text: 'This session is being reset. Please take the exercise seriously—restart from the beginning when you are ready to participate constructively.',
+                type: 'text' as const,
+                text: 'I’m ending the session due to repeated unproductive messages. You will now be taken to your final report based on what you wrote in this session.',
               },
             ],
           },
-        ])
-        window.setTimeout(() => resetCaseStudySession(), 900)
+        ]
+        setMessages(nextMessages)
+        setDebriefStarted(true)
+        generateFinalReportNow(nextMessages)
         return
       }
 
       const warnings: Record<number, string> = {
         1: 'Please stay on task. Messages need to be clear and relevant to the negotiation exercise.',
-        2: 'Another reminder: keep your contributions serious and related to the scenario. Continued disruption will end the session.',
-        3: 'This is a formal warning. One more unproductive message will restart your case study from the beginning.',
-        4: 'Final warning. The next unproductive message will reset your session.',
+        2: 'Another reminder: keep your contributions serious and related to the scenario. Continued disruption will end the session and generate your final report.',
+        3: 'Formal warning. Two more unproductive messages will end the session and generate your final report.',
+        4: 'Final warning. The next unproductive message will end the session and generate your final report.',
       }
       setMessages((prev) => [
         ...prev,
-        { id: uidUser, role: 'user', parts: [{ type: 'text', text: userText }] },
+        {
+          id: uidUser,
+          role: 'user' as const,
+          parts: [{ type: 'text' as const, text: userText }],
+        },
         {
           id: uidBot,
-          role: 'assistant',
-          parts: [{ type: 'text', text: warnings[strike] ?? warnings[1] }],
+          role: 'assistant' as const,
+          parts: [
+            {
+              type: 'text' as const,
+              text: warnings[strike] ?? warnings[1],
+            },
+          ],
         },
       ])
       return
