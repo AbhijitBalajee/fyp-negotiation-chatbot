@@ -19,6 +19,8 @@ Critical rules:
 - If information is missing, say "Not evidenced in transcript" rather than inventing facts.
 - Be honest, direct, and constructive.
 - Avoid long essays; keep each justification compact.
+- Do NOT output a template. Compute real numeric scores from the transcript.
+- Never wrap output in markdown code fences (no \`\`\`html).
 
 OUTPUT FORMAT (strict):
 - Return ONLY an HTML fragment (NOT a full HTML document).
@@ -29,36 +31,36 @@ The report content MUST follow this exact structure and headings (verbatim text)
 
 POST-NEGOTIATION EVALUATION REPORT
 Candidate: Skylar
-Overall Score: X/100
+Overall Score: N/100
 
-1. INTERESTS (X/20)
-- Consideration of Self-Interests (X/8): [Justify with 1–2 examples]
-- Inquiry into Other-Party Interests (X/8): [Justify with 1–2 examples]
-- Presentation & Justification (X/4): [Justify with 1–2 examples]
+1. INTERESTS (n/20)
+- Consideration of Self-Interests (n/8): [Justify with 1–2 examples]
+- Inquiry into Other-Party Interests (n/8): [Justify with 1–2 examples]
+- Presentation & Justification (n/4): [Justify with 1–2 examples]
 
-2. LEGITIMACY (X/10)
-- Understanding Standards (X/5): [Justify]
-- Application of Standards (X/5): [Justify]
+2. LEGITIMACY (n/10)
+- Understanding Standards (n/5): [Justify]
+- Application of Standards (n/5): [Justify]
 
-3. OPTIONS (X/20)
-- Alignment with Self-Interests (X/10): [Justify]
-- Alignment with Other-Party Interests (X/5): [Justify]
-- Creativity and Trade-offs (X/5): [Justify]
+3. OPTIONS (n/20)
+- Alignment with Self-Interests (n/10): [Justify]
+- Alignment with Other-Party Interests (n/5): [Justify]
+- Creativity and Trade-offs (n/5): [Justify]
 
-4. ALTERNATIVES / BATNA (X/10)
-- Strategic Use (X/5): [Justify]
-- Outcome vs. BATNA (X/5): [Justify]
+4. ALTERNATIVES / BATNA (n/10)
+- Strategic Use (n/5): [Justify]
+- Outcome vs. BATNA (n/5): [Justify]
 
-5. RELATIONSHIP & COMMUNICATION (X/15)
-- Tone and Professionalism (X/8): [Justify]
-- Relational Awareness (X/7): [Justify]
+5. RELATIONSHIP & COMMUNICATION (n/15)
+- Tone and Professionalism (n/8): [Justify]
+- Relational Awareness (n/7): [Justify]
 
-6. COMMITMENT (X/15)
-- Contingency Planning (X/8): [Justify]
-- Feasibility and Specificity (X/7): [Justify]
+6. COMMITMENT (n/15)
+- Contingency Planning (n/8): [Justify]
+- Feasibility and Specificity (n/7): [Justify]
 
-7. RESEARCH ETHICS (X/10)
-- Honesty and Integrity (X/10): [Justify]
+7. RESEARCH ETHICS (n/10)
+- Honesty and Integrity (n/10): [Justify]
 
 AGGRESSION IMPACT ANALYSIS
 Level reached: [None / 1 / 2 / 3]
@@ -73,13 +75,18 @@ Justification: [2–3 examples per classification]
 
 SCORE SUMMARY
 Category | Max | Score
-Interests | 20 | X
-Legitimacy | 10 | X
-Options | 20 | X
-Alternatives/BATNA | 10 | X
-Relationship & Communication | 15 | X
-Commitment | 15 | X
-Research ethics | 10 | X
+Interests | 20 | n
+Legitimacy | 10 | n
+Options | 20 | n
+Alternatives/BATNA | 10 | n
+Relationship & Communication | 15 | n
+Commitment | 15 | n
+Research ethics | 10 | n
+
+Scoring consistency requirements:
+- All scores must be integers.
+- Category totals must equal the sum of their sub-scores.
+- Overall Score must equal the sum of the 7 category scores (max 100).
 
 STRENGTHS
 - [2–3 bullets with examples]
@@ -138,7 +145,13 @@ export async function POST(req: Request) {
       temperature: 0.4,
     })
 
-    const html = (result.text || '').trim()
+    // The model sometimes wraps HTML in markdown code fences. Strip them defensively.
+    const raw = (result.text || '').trim()
+    const html = raw
+      .replace(/^```html\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/```$/i, '')
+      .trim()
     return Response.json({ html })
   } catch {
     return Response.json(

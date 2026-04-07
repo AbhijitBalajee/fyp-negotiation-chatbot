@@ -37,6 +37,7 @@ export default function ChatPage() {
   const [finalReportHtml, setFinalReportHtml] = useState<string | null>(null)
   const [finalReportGenerating, setFinalReportGenerating] = useState(false)
   const [showFinalReport, setShowFinalReport] = useState(false)
+  const [finalReportAutoDownloaded, setFinalReportAutoDownloaded] = useState(false)
   const [userName, setUserName] = useState('')
   const [nameInput, setNameInput] = useState('')
   const [nameSubmitted, setNameSubmitted] = useState(false)
@@ -105,6 +106,16 @@ export default function ChatPage() {
       })
       .finally(() => setFinalReportGenerating(false))
   }, [debriefStarted, finalReportHtml, finalReportGenerating, messages, userName])
+
+  // Auto-download the final report once, right after it's generated (after Q3).
+  useEffect(() => {
+    if (!showFinalReport) return
+    if (!finalReportHtml) return
+    if (finalReportGenerating) return
+    if (finalReportAutoDownloaded) return
+    downloadFinalReport()
+    setFinalReportAutoDownloaded(true)
+  }, [showFinalReport, finalReportHtml, finalReportGenerating, finalReportAutoDownloaded])
 
   useEffect(() => {
     if (!nameSubmitted) {
@@ -377,8 +388,8 @@ export default function ChatPage() {
               )}
 
               {!finalReportGenerating && finalReportHtml && (
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: finalReportHtml }} />
+                <div className="text-sm text-muted-foreground text-center">
+                  Your final report is ready. It will download automatically (you can download again below).
                 </div>
               )}
 
