@@ -121,5 +121,17 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(900px 500px at 10% 0%, color-mix(in oklch, var(--color-chart-1) 18%, transparent), transparent 55%),
+      radial-gradient(900px 500px at 90% 10%, color-mix(in oklch, var(--color-chart-4) 14%, transparent), transparent 60%);
+    background-attachment: fixed;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: color-mix(in oklch, var(--background) 82%, transparent);
+    border: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent);
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
   }
 }

@@ -420,6 +420,35 @@ export default function ChatPage() {
                 <p>
                   However, beyond academic commitments, Skylar is overwhelmed with a particularly demanding schedule. Final examinations are approaching, and he is concurrently managing family-related obligations that have begun to take up time and emotional capacity. Over the past month, his mother has been diagnosed with Stage Four cancer. As the sole caregiver in a single-parent household, Skylar now finds himself juggling hospital visits, caretaker responsibilities and emotional strain alongside his academic workload. While he has tried to make steady progress on his research, he is increasingly aware of the need to prioritise completing the research within the next 4 months to ensure he is able to graduate on time.
                 </p>
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <p className="font-semibold mb-2">Time &amp; workload constraints</p>
+                  <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                    <li>
+                      Next 1 month (finals + caregiving): <strong>8–10 hours/week</strong>
+                    </li>
+                    <li>
+                      Following 3 months (post-finals): <strong>up to 36 hours/week</strong>
+                    </li>
+                    <li>
+                      Hard deadline: finish within <strong>4 months</strong> to avoid delaying graduation
+                    </li>
+                  </ul>
+                </div>
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <p className="font-semibold mb-2">Financial constraints (stipend)</p>
+                  <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                    <li>
+                      Current stipend: <strong>$2,000</strong>
+                    </li>
+                    <li>
+                      Minimum target: <strong>$3,500</strong> (rent near hospital + medical support)
+                    </li>
+                    <li>
+                      Benchmarks found: <strong>$4,000–$5,000</strong>; two peers reportedly{' '}
+                      <strong>$4,200</strong> and <strong>$4,500</strong>
+                    </li>
+                  </ul>
+                </div>
                 <p>
                   <strong>Professor Pablo</strong>, Skylar’s professor, is a well-established expert in his field with a growing research group and a strong publication record. He has been supporting Skylar closely in his research. However, Professor Pablo has proposed to Skylar to pivot his research focus towards a newer and more promising area. While this shift could potentially lead to a more impactful outcome, it also meant redefining its scope, conducting new experiments and extending the timeline required for completion by at least 1 more year. From Skylar’s perspective, this proposal introduces a lot of uncertainty. A sudden shift at this stage may increase his workload, delay his graduation and move him away from the research direction he is genuinely interested in pursuing.
                 </p>
@@ -499,6 +528,35 @@ export default function ChatPage() {
                 <p className="font-medium">
                   Your task is to engage in this conversation strategically and thoughtfully. The success of the negotiation will depend not only on the final agreement reached, but also on your ability to navigate trade-offs, uncover underlying interests and handle the inherent tension between performance, wellbeing and long-term goals.
                 </p>
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <p className="font-semibold mb-2">Research scope tiers (what you can negotiate for)</p>
+                  <p className="text-muted-foreground">
+                    Use these tiers to set a clear target. Higher tiers are higher-impact but riskier for graduation and wellbeing.
+                  </p>
+                  <ul className="space-y-3 mt-3">
+                    <li>
+                      <strong>Tier 1 — Finish original scope (conservative completion)</strong>
+                      <ul className="list-disc list-inside text-muted-foreground mt-1 space-y-1">
+                        <li>Keep the current heart-valve hemodynamics direction; deliver a strong thesis + defensible results.</li>
+                        <li>Requires you to justify feasibility/resources and show reliable commitment.</li>
+                      </ul>
+                    </li>
+                    <li>
+                      <strong>Tier 2 — “Bridge” pivot (4-month, graduation-safe pivot)</strong>
+                      <ul className="list-disc list-inside text-muted-foreground mt-1 space-y-1">
+                        <li>Accept a narrowed pivot that reuses your existing work and adds minimal new work.</li>
+                        <li>Deliverables are time-boxed; insist on clear milestones and support to protect graduation.</li>
+                      </ul>
+                    </li>
+                    <li>
+                      <strong>Tier 3 — Full pivot (highest impact, highest risk)</strong>
+                      <ul className="list-disc list-inside text-muted-foreground mt-1 space-y-1">
+                        <li>New experiments and expanded scope; larger research story.</li>
+                        <li>High risk of graduation delay unless exceptional arrangements exist.</li>
+                      </ul>
+                    </li>
+                  </ul>
+                </div>
               </div>
               <div className="mt-8 flex justify-center">
                 <Button variant="default" onClick={() => setShowCaseStudy(false)} className="px-6">
@@ -559,10 +617,10 @@ export default function ChatPage() {
       )}
 
       {/* Header */}
-      <header className="flex items-center justify-between border-b border-border px-4 py-4">
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border/60 bg-background/75 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="w-10" />
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
             <Sparkles className="h-4 w-4 text-primary-foreground" />
           </div>
           <h1 className="text-lg font-semibold text-foreground">Negotiation Coach</h1>
@@ -646,7 +704,7 @@ export default function ChatPage() {
           {/* Step 1: Name capture */}
           {!nameSubmitted ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mb-6">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/70 border shadow-sm mb-6">
                 <Bot className="h-8 w-8 text-muted-foreground" />
               </div>
               <h2 className="text-xl font-semibold text-foreground mb-2">Welcome to Negotiation Coach</h2>
@@ -661,7 +719,7 @@ export default function ChatPage() {
                   onChange={(e) => setNameInput(e.target.value)}
                   placeholder="Enter your name"
                   className={cn(
-                    'w-full rounded-xl border border-input bg-background px-4 py-3 text-center',
+                    'w-full rounded-xl border border-input bg-background/70 px-4 py-3 text-center shadow-sm',
                     'text-foreground placeholder:text-muted-foreground',
                     'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
                   )}
@@ -674,7 +732,7 @@ export default function ChatPage() {
           ) : messages.length === 0 ? (
             /* Step 2: Welcome + mode buttons */
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mb-6">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/70 border shadow-sm mb-6">
                 <Bot className="h-8 w-8 text-muted-foreground" />
               </div>
               <h2 className="text-xl font-semibold text-foreground mb-2">
@@ -722,16 +780,16 @@ export default function ChatPage() {
                   )}
                 >
                   {message.role === 'assistant' && (
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary shadow-sm">
                       <Bot className="h-4 w-4 text-primary-foreground" />
                     </div>
                   )}
                   <div
                     className={cn(
-                      'rounded-2xl px-4 py-3 max-w-[85%]',
+                      'rounded-2xl px-4 py-3 max-w-[85%] border shadow-sm',
                       message.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-foreground'
+                        ? 'bg-primary text-primary-foreground border-primary/20'
+                        : 'bg-muted/70 text-foreground border-border/70'
                     )}
                   >
                     <div className="prose prose-sm dark:prose-invert max-w-none">
@@ -748,7 +806,7 @@ export default function ChatPage() {
                     </div>
                   </div>
                   {message.role === 'user' && (
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/70 border shadow-sm">
                       <User className="h-4 w-4 text-muted-foreground" />
                     </div>
                   )}
