@@ -42,6 +42,12 @@ export default function ChatPage() {
   const [showFinalReport, setShowFinalReport] = useState(false)
   const [trollStrikes, setTrollStrikes] = useState(0)
   const [clarityStrikes, setClarityStrikes] = useState(0)
+  const [clarityPopup, setClarityPopup] = useState<{
+    open: boolean
+    title: string
+    body: string
+    level: 'warn' | 'final' | 'ended'
+  }>({ open: false, title: '', body: '', level: 'warn' })
   const [finalReportSessionAt, setFinalReportSessionAt] = useState<string | null>(null)
   const [autoDebriefTriggered, setAutoDebriefTriggered] = useState(false)
   const [pendingAutoDebrief, setPendingAutoDebrief] = useState(false)
@@ -216,6 +222,7 @@ export default function ChatPage() {
     setFinalReportSessionAt(null)
     setTrollStrikes(0)
     setClarityStrikes(0)
+    setClarityPopup({ open: false, title: '', body: '', level: 'warn' })
     setInput('')
     setShowRoleSheet(false)
     setShowCaseStudy(false)
@@ -276,62 +283,57 @@ export default function ChatPage() {
     // Clear-communication enforcement: if the user keeps sending vague/unclear messages,
     // issue firm warnings and end the session with a final report.
     if (!debriefStarted && isLowClarityMessage(input)) {
-      const strike = clarityStrikes + 1
-      setClarityStrikes(strike)
       const uidUser = newId()
-      const uidBot = newId()
       const userText = input
       setInput('')
 
-      const warnings: Record<number, string> = {
-        1: `**WARNING (1/3):** Your message is too unclear to evaluate. Write a complete sentence (1–2 lines) with a specific request or counterproposal.`,
-        2: `**WARNING (2/3):** Still unclear. Be specific: state (a) what you want, (b) why, and (c) what you can offer in return.`,
-        3: `**FINAL WARNING (3/3):** One more unclear message will end this session and generate your final report.`,
-      }
-
-      if (strike >= 4) {
-        const nextMessages = [
-          ...messages,
-          {
-            id: uidUser,
-            role: 'user' as const,
-            parts: [{ type: 'text' as const, text: userText }],
-          },
-          {
-            id: uidBot,
-            role: 'assistant' as const,
-            parts: [
-              {
-                type: 'text' as const,
-                text: `**SESSION ENDED:** You repeatedly sent unclear messages. I’m ending the session and generating your final report based on what you wrote so far.`,
-              },
-            ],
-          },
-        ]
-        setMessages(nextMessages)
-        setDebriefStarted(true)
-        generateFinalReportNow(nextMessages)
-        return
-      }
-
-      setMessages((prev) => [
-        ...prev,
+      // Always record what the user typed (for transcript/report),
+      // but DO NOT send to the model while clarity enforcement is active.
+      const nextMessages = [
+        ...messages,
         {
           id: uidUser,
           role: 'user' as const,
           parts: [{ type: 'text' as const, text: userText }],
         },
-        {
-          id: uidBot,
-          role: 'assistant' as const,
-          parts: [
-            {
-              type: 'text' as const,
-              text: warnings[strike] ?? warnings[1],
-            },
-          ],
-        },
-      ])
+      ]
+      setMessages(nextMessages)
+
+      setClarityStrikes((prev) => {
+        const strike = prev + 1
+
+        if (strike >= 4) {
+          setClarityPopup({
+            open: true,
+            level: 'ended',
+            title: 'SESSION ENDED',
+            body: `You repeatedly sent unclear messages. The session is ending now and your final report will be generated based on what you wrote so far.`,
+          })
+          // Go straight to final report (no END_DEBRIEF_TRIGGER)
+          generateFinalReportNow(nextMessages)
+          return strike
+        }
+
+        if (strike === 3) {
+          setClarityPopup({
+            open: true,
+            level: 'final',
+            title: `FINAL WARNING (3/3)`,
+            body: `Your message is still unclear. Next unclear message will end the session and generate your final report.\n\nWrite 1–2 sentences with: (a) what you want, (b) why, (c) what you can offer.`,
+          })
+          return strike
+        }
+
+        setClarityPopup({
+          open: true,
+          level: 'warn',
+          title: `WARNING (${strike}/3)`,
+          body: strike === 1
+            ? `Your message is too unclear to evaluate.\n\nWrite a complete sentence (1–2 lines) with a specific request or counterproposal.`
+            : `Still unclear.\n\nBe specific: (a) what you want, (b) why, (c) what you can offer in return.`,
+        })
+        return strike
+      })
       return
     }
 
@@ -751,6 +753,48 @@ export default function ChatPage() {
                 <FileDown className="mr-2 h-4 w-4" />
                 Download Final Report (.html)
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clarity warning popup */}
+      {clarityPopup.open && !showFinalReport && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
+          <div
+            className={cn(
+              'w-full max-w-lg rounded-2xl border shadow-xl backdrop-blur',
+              clarityPopup.level === 'ended'
+                ? 'border-destructive/40 bg-background/90'
+                : clarityPopup.level === 'final'
+                  ? 'border-destructive/35 bg-background/90'
+                  : 'border-destructive/25 bg-background/90'
+            )}
+          >
+            <div className="p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-destructive">{clarityPopup.title}</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
+                    {clarityPopup.body}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setClarityPopup((p) => ({ ...p, open: false }))}
+                >
+                  OK
+                </Button>
+              </div>
+              <div className="mt-4 rounded-xl border bg-muted/30 p-3">
+                <p className="text-xs font-medium text-foreground mb-1">Example (copy/paste)</p>
+                <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                  I want to keep the original scope and graduate in 4 months. I can commit 10 hours/week for the next month and 30 hours/week after finals, with weekly progress updates. In exchange, I’m asking for the 4‑month “bridge” pivot only (no full restart) and a stipend of $3,500.
+                </p>
+              </div>
             </div>
           </div>
         </div>
