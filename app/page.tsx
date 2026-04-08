@@ -425,7 +425,12 @@ export default function ChatPage() {
       const userText = input
       setInput('')
 
-      if (strike >= 5) {
+      // Troll/gibberish escalation flow:
+      // - Strikes 1–4: warnings
+      // - Strike 5: check-in ("do you even want to continue?")
+      // - Strikes 6–7: last chances
+      // - Strike 8+: end session and generate final report
+      if (strike >= 8) {
         const nextMessages = [
           ...messages,
           {
@@ -439,7 +444,8 @@ export default function ChatPage() {
             parts: [
               {
                 type: 'text' as const,
-                text: 'I’m ending the session due to repeated unproductive messages. You will now be taken to your final report based on what you wrote in this session.',
+                text:
+                  '**PAUSING SESSION:** It looks like you’re not engaging with the exercise right now.\n\nTake a few minutes, then come back when you’re ready to negotiate seriously. I’m generating your final report based on what you wrote so far.',
               },
             ],
           },
@@ -450,10 +456,13 @@ export default function ChatPage() {
       }
 
       const warnings: Record<number, string> = {
-        1: '**WARNING (1/5):** Stay on task. Messages must be clear and relevant to the negotiation exercise.',
-        2: '**WARNING (2/5):** Keep your contributions serious and related to the scenario. Continued disruption will end the session and generate your final report.',
-        3: '**FORMAL WARNING (3/5):** Two more unproductive messages will end the session and generate your final report.',
-        4: '**FINAL WARNING (4/5):** The next unproductive message will end the session and generate your final report.',
+        1: '**WARNING (1/4):** Stay on task. Messages must be clear and relevant to the negotiation exercise.',
+        2: '**WARNING (2/4):** Keep your contributions serious and related to the scenario. Continued disruption will trigger a check‑in and may end the session.',
+        3: '**FORMAL WARNING (3/4):** One more unproductive message triggers a check‑in.',
+        4: '**FINAL WARNING (4/4):** Next unproductive message triggers a check‑in.',
+        5: '**CHECK‑IN:** Do you actually want to continue the negotiation exercise?\n\nIf yes, reply with one serious, scenario‑relevant message. If you keep trolling 3 more times, I will pause the session and generate your final report.',
+        6: '**LAST CHANCE (1/3):** One serious message or we pause the session.',
+        7: '**LAST CHANCE (2/3):** Next time I will pause the session and generate your final report.',
       }
       setMessages((prev) => [
         ...prev,
