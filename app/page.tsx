@@ -41,6 +41,7 @@ export default function ChatPage() {
   const [showFinalReport, setShowFinalReport] = useState(false)
   const [trollStrikes, setTrollStrikes] = useState(0)
   const [clarityStrikes, setClarityStrikes] = useState(0)
+  const [awaitingClarification, setAwaitingClarification] = useState(false)
   const [clarityPopup, setClarityPopup] = useState<{
     open: boolean
     title: string
@@ -176,6 +177,9 @@ export default function ChatPage() {
       lower.includes('end negotiation') ||
       lower.includes('end conversation')
     if (allowedShort) return false
+
+    // If we're in a "clarify your answer" loop, do not allow yes/no as a valid follow-up.
+    if (awaitingClarification && (lower === 'yes' || lower === 'no')) return true
 
     // If user replies "yes/no" but assistant asked an open question, treat as low clarity.
     if ((lower === 'yes' || lower === 'no') && !assistantAskedPolar) return true
@@ -371,6 +375,7 @@ export default function ChatPage() {
         .trim() ?? ''
 
     if (isLowClarityMessage(input, { lastAssistantText })) {
+      setAwaitingClarification(true)
       const uidUser = newId()
       const uidBot = newId()
       const userText = input
@@ -414,8 +419,9 @@ export default function ChatPage() {
       return
     }
 
-    // Reset clarity warnings when user sends a usable message.
-    if (clarityStrikes !== 0) setClarityStrikes(0)
+    // If the user sends a usable message, we can exit the "clarify your answer" loop,
+    // but we do NOT reset strike counters (those only reset after final report → back to chat).
+    if (awaitingClarification) setAwaitingClarification(false)
 
     if (isGibberishOrTroll(input, { debriefMode: false })) {
       const uidUser = newId()
@@ -840,6 +846,7 @@ export default function ChatPage() {
                   setShowFinalReport(false)
                   setTrollStrikes(0)
                   setClarityStrikes(0)
+                  setAwaitingClarification(false)
                   if (clarityPopupTimerRef.current) window.clearTimeout(clarityPopupTimerRef.current)
                   clarityPopupTimerRef.current = null
                   setClarityPopup((p) => ({ ...p, open: false }))
