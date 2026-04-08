@@ -418,70 +418,76 @@ export default function ChatPage() {
     if (clarityStrikes !== 0) setClarityStrikes(0)
 
     if (isGibberishOrTroll(input, { debriefMode: false })) {
-      const strike = trollStrikes + 1
-      setTrollStrikes(strike)
       const uidUser = newId()
       const uidBot = newId()
       const userText = input
       setInput('')
 
-      // Troll/gibberish escalation flow:
-      // - Strikes 1–4: warnings
-      // - Strike 5: check-in ("do you even want to continue?")
-      // - Strikes 6–7: last chances
-      // - Strike 8+: end session and generate final report
-      if (strike >= 8) {
-        const nextMessages = [
-          ...messages,
-          {
-            id: uidUser,
-            role: 'user' as const,
-            parts: [{ type: 'text' as const, text: userText }],
-          },
-          {
-            id: uidBot,
-            role: 'assistant' as const,
-            parts: [
-              {
-                type: 'text' as const,
-                text:
-                  '**PAUSING SESSION:** It looks like you’re not engaging with the exercise right now.\n\nTake a few minutes, then come back when you’re ready to negotiate seriously. I’m generating your final report based on what you wrote so far.',
-              },
-            ],
-          },
-        ]
-        setMessages(nextMessages)
-        generateFinalReportNow(nextMessages)
-        return
-      }
+      // Use a functional update so strikes can't get "stuck" due to stale state.
+      setTrollStrikes((prevStrikes) => {
+        const strike = prevStrikes + 1
 
-      const warnings: Record<number, string> = {
-        1: '**WARNING (1/4):** Stay on task. Messages must be clear and relevant to the negotiation exercise.',
-        2: '**WARNING (2/4):** Keep your contributions serious and related to the scenario. Continued disruption will trigger a check‑in and may end the session.',
-        3: '**FORMAL WARNING (3/4):** One more unproductive message triggers a check‑in.',
-        4: '**FINAL WARNING (4/4):** Next unproductive message triggers a check‑in.',
-        5: '**CHECK‑IN:** Do you actually want to continue the negotiation exercise?\n\nIf yes, reply with one serious, scenario‑relevant message. If you keep trolling 3 more times, I will pause the session and generate your final report.',
-        6: '**LAST CHANCE (1/3):** One serious message or we pause the session.',
-        7: '**LAST CHANCE (2/3):** Next time I will pause the session and generate your final report.',
-      }
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: uidUser,
-          role: 'user' as const,
-          parts: [{ type: 'text' as const, text: userText }],
-        },
-        {
-          id: uidBot,
-          role: 'assistant' as const,
-          parts: [
+        // Troll/gibberish escalation flow:
+        // - Strikes 1–4: warnings
+        // - Strike 5: check-in ("do you even want to continue?")
+        // - Strikes 6–7: last chances
+        // - Strike 8+: pause session and generate final report
+        const warnings: Record<number, string> = {
+          1: '**WARNING (1/4):** Stay on task. Messages must be clear and relevant to the negotiation exercise.',
+          2: '**WARNING (2/4):** Keep your contributions serious and related to the scenario. Continued disruption will trigger a check‑in and may end the session.',
+          3: '**FORMAL WARNING (3/4):** One more unproductive message triggers a check‑in.',
+          4: '**FINAL WARNING (4/4):** Next unproductive message triggers a check‑in.',
+          5: '**CHECK‑IN:** Do you actually want to continue the negotiation exercise?\n\nIf yes, reply with one serious, scenario‑relevant message. If you keep trolling 3 more times, I will pause the session and generate your final report.',
+          6: '**LAST CHANCE (1/3):** One serious message or we pause the session.',
+          7: '**LAST CHANCE (2/3):** Next time I will pause the session and generate your final report.',
+        }
+
+        setMessages((prev) => {
+          const base = [
+            ...prev,
             {
-              type: 'text' as const,
-              text: warnings[strike] ?? warnings[1],
+              id: uidUser,
+              role: 'user' as const,
+              parts: [{ type: 'text' as const, text: userText }],
             },
-          ],
-        },
-      ])
+          ]
+
+          if (strike >= 8) {
+            const nextMessages = [
+              ...base,
+              {
+                id: uidBot,
+                role: 'assistant' as const,
+                parts: [
+                  {
+                    type: 'text' as const,
+                    text:
+                      '**PAUSING SESSION:** It looks like you’re not engaging with the exercise right now.\n\nTake a few minutes, then come back when you’re ready to negotiate seriously. I’m generating your final report based on what you wrote so far.',
+                  },
+                ],
+              },
+            ]
+            generateFinalReportNow(nextMessages)
+            return nextMessages
+          }
+
+          return [
+            ...base,
+            {
+              id: uidBot,
+              role: 'assistant' as const,
+              parts: [
+                {
+                  type: 'text' as const,
+                  text: warnings[strike] ?? warnings[1],
+                },
+              ],
+            },
+          ]
+        })
+
+        return strike
+      })
       return
     }
 
