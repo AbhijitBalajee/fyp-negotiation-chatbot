@@ -430,7 +430,7 @@ export default function ChatPage() {
           ]
 
           if (strike >= 8) {
-            const nextMessages = [
+            return [
               ...base,
               {
                 id: uidBot,
@@ -439,13 +439,11 @@ export default function ChatPage() {
                   {
                     type: 'text' as const,
                     text:
-                      `**PAUSING SESSION:** I’m not getting usable negotiation input.\n\nTake a few minutes and come back when you’re ready to engage seriously. I’m generating your final report based on what you wrote so far.\nINTERNAL_CLARITY_FOLLOWUP`,
+                      `**PAUSE SUGGESTED:** I’m still not getting usable negotiation input.\n\nIf you want to continue, reply with one clear, scenario‑relevant message. If not, take a short break and come back when you’re ready.\nINTERNAL_CLARITY_FOLLOWUP`,
                   },
                 ],
               },
             ]
-            generateFinalReportNow(nextMessages)
-            return nextMessages
           }
 
           return [
@@ -462,7 +460,7 @@ export default function ChatPage() {
           title: strike === 5 ? 'CHECK‑IN' : `WARNING (${strike})`,
           body:
             strike === 5
-              ? `Do you actually want to continue? If yes, reply with one serious, scenario‑relevant message.\n\nIf you keep giving illogical replies 3 more times, the session will be paused and a final report will be generated.`
+              ? `Do you actually want to continue? If yes, reply with one serious, scenario‑relevant message.\n\nIf not, take a short break and come back when you’re ready.`
               : strike === 1
                 ? `Your message is too unclear to evaluate.\n\nWrite a complete sentence (1–2 lines) with a specific request or counterproposal.`
                 : `Still unclear.\n\nBe specific: (a) what you want, (b) why, (c) what you can offer in return.`,
