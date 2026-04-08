@@ -834,7 +834,16 @@ export default function ChatPage() {
                 type="button"
                 variant="outline"
                 className="border-[rgba(148,163,184,.35)] bg-transparent text-[#e5e7eb] hover:bg-[rgba(148,163,184,.12)]"
-                onClick={() => setShowFinalReport(false)}
+                onClick={() => {
+                  // If the user goes back to chat after viewing a final report,
+                  // treat it like a "reset" of warning states.
+                  setShowFinalReport(false)
+                  setTrollStrikes(0)
+                  setClarityStrikes(0)
+                  if (clarityPopupTimerRef.current) window.clearTimeout(clarityPopupTimerRef.current)
+                  clarityPopupTimerRef.current = null
+                  setClarityPopup((p) => ({ ...p, open: false }))
+                }}
               >
                 Back to chat
               </Button>
