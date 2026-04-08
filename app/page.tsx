@@ -249,6 +249,44 @@ export default function ChatPage() {
     }
   }
 
+  const buildClarityFollowUp = (args: {
+    userText: string
+    lastAssistantText: string
+    strike: number
+  }) => {
+    const raw = args.userText.trim()
+    const lower = raw.toLowerCase()
+    const last = args.lastAssistantText.trim()
+
+    // Try to reference the professor's last question (keeps it "natural")
+    const lastQuestionLine = (() => {
+      const lines = last.split('\n').map((l) => l.trim()).filter(Boolean)
+      const q = [...lines].reverse().find((l) => l.includes('?'))
+      if (!q) return ''
+      // Keep it short so we don't dump paragraphs into the prompt.
+      return q.length > 140 ? `${q.slice(0, 140)}…` : q
+    })()
+
+    // Special-case: yes/no without context (common failure mode)
+    if (lower === 'yes' || lower === 'no') {
+      const variants = [
+        `Yes/no to *which part* exactly? ${lastQuestionLine ? `\n\nYou’re responding to: “${lastQuestionLine}”` : ''}\n\nGive me one clear sentence with the specific point you’re agreeing/disagreeing with.`,
+        `I can’t act on just “${raw}”. ${lastQuestionLine ? `Are you answering: “${lastQuestionLine}”` : 'What are you responding to?'}\n\nTell me what you mean in one sentence.`,
+        `Hold on — “${raw}” isn’t enough.\n\nWhat are you saying ${raw} to, and what do you want to happen next?`,
+      ]
+      return variants[(args.strike - 1) % variants.length]
+    }
+
+    // General low-clarity follow-ups (firm, but varied)
+    const generalVariants = [
+      `I’m not sure what you mean by that. ${lastQuestionLine ? `\n\nCan you answer this directly: “${lastQuestionLine}”` : ''}\n\nSay it in 1–2 sentences.`,
+      `Help me understand — why did you reply like that? ${lastQuestionLine ? `\n\nRespond to: “${lastQuestionLine}”` : ''}\n\nBe specific about what you want.`,
+      `That doesn’t give me enough to work with. ${lastQuestionLine ? `\n\nAnswer the question: “${lastQuestionLine}”` : ''}\n\nWhat’s your request (and your reason) in one short paragraph?`,
+      `I can’t proceed on that message. ${lastQuestionLine ? `\n\nAre you able to answer: “${lastQuestionLine}”` : ''}\n\nState your position clearly, then propose a next step.`,
+    ]
+    return generalVariants[(args.strike - 1) % generalVariants.length]
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
@@ -303,33 +341,30 @@ export default function ChatPage() {
       const userText = input
       setInput('')
 
-      // Always record what the user typed (for transcript/report),
-      // but DO NOT send to the model while clarity enforcement is active.
-      const nextMessages = [
-        ...messages,
-        {
-          id: uidUser,
-          role: 'user' as const,
-          parts: [{ type: 'text' as const, text: userText }],
-        },
-        {
-          id: uidBot,
-          role: 'assistant' as const,
-          parts: [
-            {
-              type: 'text' as const,
-              text:
-                `I can’t use that reply as-is.\n\n` +
-                `What did you mean specifically? Reply in 1–2 sentences with:\n` +
-                `1) what you want,\n2) why,\n3) what you can offer in return.`,
-            },
-          ],
-        },
-      ]
-      setMessages(nextMessages)
-
       setClarityStrikes((prev) => {
         const strike = prev + 1
+
+        const followUp = buildClarityFollowUp({
+          userText,
+          lastAssistantText,
+          strike,
+        })
+
+        // Always record what the user typed (for transcript/report),
+        // but DO NOT send to the model while clarity enforcement is active.
+        setMessages((prevMsgs) => [
+          ...prevMsgs,
+          {
+            id: uidUser,
+            role: 'user' as const,
+            parts: [{ type: 'text' as const, text: userText }],
+          },
+          {
+            id: uidBot,
+            role: 'assistant' as const,
+            parts: [{ type: 'text' as const, text: followUp }],
+          },
+        ])
 
         openClarityPopup({
           title: `WARNING (${strike})`,
