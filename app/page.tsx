@@ -404,34 +404,68 @@ export default function ChatPage() {
       setClarityStrikes((prev) => {
         const strike = prev + 1
 
-        const followUp = buildClarityFollowUp({
-          userText,
-          lastAssistantText,
-          strike,
-        })
+        const followUp =
+          strike === 5
+            ? `**CHECK‑IN:** Do you actually want to continue the negotiation exercise?\n\nIf yes, reply with one serious, scenario‑relevant message (not just “yes/no”). If you keep giving illogical replies 3 more times, I’ll pause the session and generate your final report.`
+            : strike === 6
+              ? `**LAST CHANCE (1/3):** One clear message, or we pause the session.`
+              : strike === 7
+                ? `**LAST CHANCE (2/3):** Next time I will pause the session and generate your final report.`
+                : buildClarityFollowUp({
+                    userText,
+                    lastAssistantText,
+                    strike,
+                  })
 
         // Always record what the user typed (for transcript/report),
         // but DO NOT send to the model while clarity enforcement is active.
-        setMessages((prevMsgs) => [
-          ...prevMsgs,
-          {
-            id: uidUser,
-            role: 'user' as const,
-            parts: [{ type: 'text' as const, text: userText }],
-          },
-          {
-            id: uidBot,
-            role: 'assistant' as const,
-            parts: [{ type: 'text' as const, text: `${followUp}\nINTERNAL_CLARITY_FOLLOWUP` }],
-          },
-        ])
+        setMessages((prevMsgs) => {
+          const base = [
+            ...prevMsgs,
+            {
+              id: uidUser,
+              role: 'user' as const,
+              parts: [{ type: 'text' as const, text: userText }],
+            },
+          ]
+
+          if (strike >= 8) {
+            const nextMessages = [
+              ...base,
+              {
+                id: uidBot,
+                role: 'assistant' as const,
+                parts: [
+                  {
+                    type: 'text' as const,
+                    text:
+                      `**PAUSING SESSION:** I’m not getting usable negotiation input.\n\nTake a few minutes and come back when you’re ready to engage seriously. I’m generating your final report based on what you wrote so far.\nINTERNAL_CLARITY_FOLLOWUP`,
+                  },
+                ],
+              },
+            ]
+            generateFinalReportNow(nextMessages)
+            return nextMessages
+          }
+
+          return [
+            ...base,
+            {
+              id: uidBot,
+              role: 'assistant' as const,
+              parts: [{ type: 'text' as const, text: `${followUp}\nINTERNAL_CLARITY_FOLLOWUP` }],
+            },
+          ]
+        })
 
         openClarityPopup({
-          title: `WARNING (${strike})`,
+          title: strike === 5 ? 'CHECK‑IN' : `WARNING (${strike})`,
           body:
-            strike === 1
-              ? `Your message is too unclear to evaluate.\n\nWrite a complete sentence (1–2 lines) with a specific request or counterproposal.`
-              : `Still unclear.\n\nBe specific: (a) what you want, (b) why, (c) what you can offer in return.`,
+            strike === 5
+              ? `Do you actually want to continue? If yes, reply with one serious, scenario‑relevant message.\n\nIf you keep giving illogical replies 3 more times, the session will be paused and a final report will be generated.`
+              : strike === 1
+                ? `Your message is too unclear to evaluate.\n\nWrite a complete sentence (1–2 lines) with a specific request or counterproposal.`
+                : `Still unclear.\n\nBe specific: (a) what you want, (b) why, (c) what you can offer in return.`,
           autoCloseMs: 2600,
         })
         return strike
