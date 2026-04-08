@@ -257,6 +257,7 @@ export default function ChatPage() {
     const raw = args.userText.trim()
     const lower = raw.toLowerCase()
     const last = args.lastAssistantText.trim()
+    const lastLower = last.toLowerCase()
 
     // Try to reference the professor's last question (keeps it "natural")
     const lastQuestionLine = (() => {
@@ -277,12 +278,42 @@ export default function ChatPage() {
       return variants[(args.strike - 1) % variants.length]
     }
 
+    // Context-specific nudges so it feels like a real professor, not a template.
+    if (lastLower.includes('hours') || lastLower.includes('commit') || lastLower.includes('commitment')) {
+      const variants = [
+        `I need specifics on commitment. How many hours per week can you *actually* do for the next month, and after finals?`,
+        `Don’t stay vague. Give me a number: weekly hours, and how you’ll keep me updated if something slips.`,
+      ]
+      return variants[(args.strike - 1) % variants.length]
+    }
+    if (lastLower.includes('stipend') || lastLower.includes('$') || lastLower.includes('financial')) {
+      const variants = [
+        `If you’re raising funding, be concrete. What stipend are you asking for, and what’s the justification?`,
+        `Numbers, not hints. Tell me the amount and the reason — otherwise I can’t take it seriously.`,
+      ]
+      return variants[(args.strike - 1) % variants.length]
+    }
+    if (lastLower.includes('lambert') || lastLower.includes('outside') || lastLower.includes('shared') || lastLower.includes('confidential')) {
+      const variants = [
+        `Answer this directly: did you share any project details outside the group? Yes or no — then one sentence of context.`,
+        `I’m asking about confidentiality. Did anything leave the lab? Be direct.`,
+      ]
+      return variants[(args.strike - 1) % variants.length]
+    }
+    if (lastLower.includes('pivot') || lastLower.includes('scope') || lastLower.includes('direction')) {
+      const variants = [
+        `Which path are you arguing for — original scope, bridge pivot, or full pivot? Pick one and tell me why.`,
+        `Be explicit: what do you want the scope to be, and what deliverable are you committing to?`,
+      ]
+      return variants[(args.strike - 1) % variants.length]
+    }
+
     // General low-clarity follow-ups (firm, but varied)
     const generalVariants = [
-      `I’m not sure what you mean by that. ${lastQuestionLine ? `\n\nCan you answer this directly: “${lastQuestionLine}”` : ''}\n\nSay it in 1–2 sentences.`,
-      `Help me understand — why did you reply like that? ${lastQuestionLine ? `\n\nRespond to: “${lastQuestionLine}”` : ''}\n\nBe specific about what you want.`,
-      `That doesn’t give me enough to work with. ${lastQuestionLine ? `\n\nAnswer the question: “${lastQuestionLine}”` : ''}\n\nWhat’s your request (and your reason) in one short paragraph?`,
-      `I can’t proceed on that message. ${lastQuestionLine ? `\n\nAre you able to answer: “${lastQuestionLine}”` : ''}\n\nState your position clearly, then propose a next step.`,
+      `I’m not sure what you mean by that. ${lastQuestionLine ? `\n\nAnswer this directly: “${lastQuestionLine}”` : ''}\n\nOne or two sentences — no filler.`,
+      `Pause. Why did you reply like that? ${lastQuestionLine ? `\n\nRespond to: “${lastQuestionLine}”` : ''}\n\nTell me what you want, clearly.`,
+      `That’s too vague to act on. ${lastQuestionLine ? `\n\nAnswer the question: “${lastQuestionLine}”` : ''}\n\nWhat are you proposing, exactly?`,
+      `I can’t move forward on that. ${lastQuestionLine ? `\n\nCan you answer: “${lastQuestionLine}”` : ''}\n\nState your position, then your next step.`,
     ]
     return generalVariants[(args.strike - 1) % generalVariants.length]
   }
@@ -314,7 +345,11 @@ export default function ChatPage() {
       trimmed.includes('end negotiation and begin debrief') ||
       trimmed.includes('begin debrief') ||
       trimmed.includes('end negotiation') ||
-      trimmed.includes('end conversation')
+      trimmed.includes('end conversation') ||
+      /\b(let['’]?s|lets)\s+(end|wrap up|finish|stop)\b/.test(trimmed) ||
+      /\bwe\s+(are|re)\s+(done|finished)\b/.test(trimmed) ||
+      /\bwrap\s+up\b/.test(trimmed) ||
+      /\bend\s+this\s+(now|here|session)\b/.test(trimmed)
     ) {
       setAutoDebriefTriggered(true)
       setPendingAutoDebrief(false)
