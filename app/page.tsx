@@ -77,11 +77,17 @@ export default function ChatPage() {
   const stripConclusionMarker = (text: string) =>
     text
       .split('\n')
-      .filter((l) => l.trim() !== 'NEGOTIATION_CONCLUDED')
+      .filter(
+        (l) =>
+          l.trim() !== 'NEGOTIATION_CONCLUDED' && l.trim() !== 'INTERNAL_CLARITY_FOLLOWUP'
+      )
       .join('\n')
 
   const assistantConcluded = (text: string) =>
     text.split('\n').some((l) => l.trim() === 'NEGOTIATION_CONCLUDED')
+
+  const isInternalClarityFollowUp = (text: string) =>
+    text.split('\n').some((l) => l.trim() === 'INTERNAL_CLARITY_FOLLOWUP')
 
   // Auto-end scenario when the assistant clearly concludes (agreement or walk-away),
   // so the user doesn't need to press "End Negotiation".
@@ -178,8 +184,11 @@ export default function ChatPage() {
       lower.includes('end conversation')
     if (allowedShort) return false
 
-    // If we're in a "clarify your answer" loop, do not allow yes/no as a valid follow-up.
-    if (awaitingClarification && (lower === 'yes' || lower === 'no')) return true
+    // If we're in a "clarify your answer" loop, only allow yes/no when it logically answers
+    // the last REAL professor question (ctx.lastAssistantText), not the app's own follow-up.
+    if (awaitingClarification && (lower === 'yes' || lower === 'no')) {
+      return !assistantAskedPolar
+    }
 
     // If user replies "yes/no" but assistant asked an open question, treat as low clarity.
     if ((lower === 'yes' || lower === 'no') && !assistantAskedPolar) return true
@@ -367,8 +376,19 @@ export default function ChatPage() {
     // Clear-communication enforcement: if the user keeps sending vague/unclear messages,
     // issue firm warnings and end the session with a final report.
     const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
+    const lastRealAssistant = [...messages]
+      .reverse()
+      .find((m) => {
+        if (m.role !== 'assistant') return false
+        const text = m.parts
+          .filter((p) => p.type === 'text')
+          .map((p) => (p as { type: 'text'; text: string }).text)
+          .join('')
+          .trim()
+        return text.length > 0 && !isInternalClarityFollowUp(text)
+      })
     const lastAssistantText =
-      lastAssistant?.parts
+      lastRealAssistant?.parts
         ?.filter((p) => p.type === 'text')
         .map((p) => (p as { type: 'text'; text: string }).text)
         .join('')
@@ -402,7 +422,7 @@ export default function ChatPage() {
           {
             id: uidBot,
             role: 'assistant' as const,
-            parts: [{ type: 'text' as const, text: followUp }],
+            parts: [{ type: 'text' as const, text: `${followUp}\nINTERNAL_CLARITY_FOLLOWUP` }],
           },
         ])
 
