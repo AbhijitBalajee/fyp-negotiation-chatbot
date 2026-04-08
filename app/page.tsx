@@ -63,6 +63,7 @@ export default function ChatPage() {
 
   const isLoading = status === 'streaming' || status === 'submitted'
   const pendingAutoDebriefTimerRef = useRef<number | null>(null)
+  const clarityPopupTimerRef = useRef<number | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -223,6 +224,31 @@ export default function ChatPage() {
       .finally(() => setFinalReportGenerating(false))
   }
 
+  const openClarityPopup = (next: {
+    title: string
+    body: string
+    level?: 'warn' | 'final' | 'ended'
+    autoCloseMs?: number
+  }) => {
+    if (clarityPopupTimerRef.current) window.clearTimeout(clarityPopupTimerRef.current)
+    clarityPopupTimerRef.current = null
+
+    setClarityPopup({
+      open: true,
+      level: next.level ?? 'warn',
+      title: next.title,
+      body: next.body,
+    })
+
+    const ms = next.autoCloseMs ?? 2600
+    if (ms > 0) {
+      clarityPopupTimerRef.current = window.setTimeout(() => {
+        setClarityPopup((p) => ({ ...p, open: false }))
+        clarityPopupTimerRef.current = null
+      }, ms)
+    }
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
@@ -273,6 +299,7 @@ export default function ChatPage() {
 
     if (isLowClarityMessage(input, { lastAssistantText })) {
       const uidUser = newId()
+      const uidBot = newId()
       const userText = input
       setInput('')
 
@@ -285,20 +312,32 @@ export default function ChatPage() {
           role: 'user' as const,
           parts: [{ type: 'text' as const, text: userText }],
         },
+        {
+          id: uidBot,
+          role: 'assistant' as const,
+          parts: [
+            {
+              type: 'text' as const,
+              text:
+                `I can’t use that reply as-is.\n\n` +
+                `What did you mean specifically? Reply in 1–2 sentences with:\n` +
+                `1) what you want,\n2) why,\n3) what you can offer in return.`,
+            },
+          ],
+        },
       ]
       setMessages(nextMessages)
 
       setClarityStrikes((prev) => {
         const strike = prev + 1
 
-        setClarityPopup({
-          open: true,
-          level: 'warn',
+        openClarityPopup({
           title: `WARNING (${strike})`,
           body:
             strike === 1
               ? `Your message is too unclear to evaluate.\n\nWrite a complete sentence (1–2 lines) with a specific request or counterproposal.`
               : `Still unclear.\n\nBe specific: (a) what you want, (b) why, (c) what you can offer in return.`,
+          autoCloseMs: 2600,
         })
         return strike
       })
@@ -754,7 +793,11 @@ export default function ChatPage() {
                   variant="outline"
                   size="sm"
                   className="shrink-0"
-                  onClick={() => setClarityPopup((p) => ({ ...p, open: false }))}
+                  onClick={() => {
+                    if (clarityPopupTimerRef.current) window.clearTimeout(clarityPopupTimerRef.current)
+                    clarityPopupTimerRef.current = null
+                    setClarityPopup((p) => ({ ...p, open: false }))
+                  }}
                 >
                   OK
                 </Button>
