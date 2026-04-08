@@ -37,6 +37,17 @@ POST-NEGOTIATION EVALUATION REPORT
 Candidate: Skylar
 Overall Score: N/100
 
+TKI CLASSIFICATION
+Primary: [Competing/Collaborating/Compromising/Avoiding/Accommodating] — [Scientist] — "[Quote]"
+Secondary: [Competing/Collaborating/Compromising/Avoiding/Accommodating] — [Scientist] — "[Quote]"
+[If score ≥90, include: "If you are not at the table, you are on the menu." — Kuan Yee Han]
+Justification: [2–3 examples per classification]
+
+AGGRESSION IMPACT ANALYSIS
+Level reached: [None / 1 / 2 / 3]
+Impact on scoring: [Explain caps/impacts if any]
+Specific moments: [Cite examples]
+
 1. INTERESTS (n/20)
 - Consideration of Self-Interests (n/8): [Justify with 1–2 examples]
 - Inquiry into Other-Party Interests (n/8): [Justify with 1–2 examples]
@@ -65,17 +76,6 @@ Overall Score: N/100
 
 7. RESEARCH ETHICS (n/10)
 - Honesty and Integrity (n/10): [Justify]
-
-AGGRESSION IMPACT ANALYSIS
-Level reached: [None / 1 / 2 / 3]
-Impact on scoring: [Explain caps/impacts if any]
-Specific moments: [Cite examples]
-
-TKI CLASSIFICATION
-Primary: [Competing/Collaborating/Compromising/Avoiding/Accommodating] — [Scientist] — "[Quote]"
-Secondary: [Competing/Collaborating/Compromising/Avoiding/Accommodating] — [Scientist] — "[Quote]"
-[If score ≥90, include: "If you are not at the table, you are on the menu." — Kuan Yee Han]
-Justification: [2–3 examples per classification]
 
 SCORE SUMMARY
 Category | Max | Score

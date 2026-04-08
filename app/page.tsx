@@ -36,7 +36,6 @@ export default function ChatPage() {
   const [showRoleSheet, setShowRoleSheet] = useState(false)
   const [showObjectives, setShowObjectives] = useState(false)
   const [showCaseStudy, setShowCaseStudy] = useState(false)
-  const [debriefStarted, setDebriefStarted] = useState(false)
   const [finalReportHtml, setFinalReportHtml] = useState<string | null>(null)
   const [finalReportGenerating, setFinalReportGenerating] = useState(false)
   const [showFinalReport, setShowFinalReport] = useState(false)
@@ -86,7 +85,6 @@ export default function ChatPage() {
   // so the user doesn't need to press "End Negotiation".
   useEffect(() => {
     if (autoDebriefTriggered) return
-    if (debriefStarted) return
     if (showFinalReport) return
     if (isLoading) return
     if (messages.length < 6) return
@@ -106,8 +104,7 @@ export default function ChatPage() {
       pendingAutoDebriefTimerRef.current = window.setTimeout(() => {
         setAutoDebriefTriggered(true)
         setPendingAutoDebrief(false)
-        setDebriefStarted(true)
-        sendMessage({ text: 'END_DEBRIEF_TRIGGER' })
+        generateFinalReportNow(messages)
       }, 1200)
       return
     }
@@ -127,42 +124,9 @@ export default function ChatPage() {
     pendingAutoDebriefTimerRef.current = window.setTimeout(() => {
       setAutoDebriefTriggered(true)
       setPendingAutoDebrief(false)
-      setDebriefStarted(true)
-      sendMessage({ text: 'END_DEBRIEF_TRIGGER' })
+      generateFinalReportNow(messages)
     }, 1200)
-  }, [autoDebriefTriggered, debriefStarted, isLoading, messages, sendMessage, showFinalReport])
-
-  useEffect(() => {
-    if (!debriefStarted) return
-    if (finalReportHtml || finalReportGenerating) return
-
-    const triggerIndex = messages.findIndex((m) => {
-      if (m.role !== 'user') return false
-      const text = m.parts
-        .filter((p) => p.type === 'text')
-        .map((p) => (p as { type: 'text'; text: string }).text)
-        .join('')
-        .trim()
-      return text === 'END_DEBRIEF_TRIGGER'
-    })
-    if (triggerIndex === -1) return
-
-    const userAnswersCount = messages
-      .slice(triggerIndex + 1)
-      .filter((m) => m.role === 'user')
-      .map((m) =>
-        m.parts
-          .filter((p) => p.type === 'text')
-          .map((p) => (p as { type: 'text'; text: string }).text)
-          .join('')
-          .trim()
-      )
-      .filter((t) => t.length > 0).length
-
-    if (userAnswersCount < 3) return
-
-    generateFinalReportNow(messages)
-  }, [debriefStarted, finalReportHtml, finalReportGenerating, messages, userName])
+  }, [autoDebriefTriggered, isLoading, messages, showFinalReport])
 
   useEffect(() => {
     if (!nameSubmitted) {
@@ -224,7 +188,6 @@ export default function ChatPage() {
 
   const resetCaseStudySession = () => {
     setMessages([])
-    setDebriefStarted(false)
     setAutoDebriefTriggered(false)
     setPendingAutoDebrief(false)
     if (pendingAutoDebriefTimerRef.current) window.clearTimeout(pendingAutoDebriefTimerRef.current)
@@ -285,10 +248,15 @@ export default function ChatPage() {
     if (
       trimmed.includes('end conversation and begin debrief') ||
       trimmed.includes('end negotiation and begin debrief') ||
-      trimmed.includes('begin debrief')
+      trimmed.includes('begin debrief') ||
+      trimmed.includes('end negotiation') ||
+      trimmed.includes('end conversation')
     ) {
-      setDebriefStarted(true)
-      sendMessage({ text: 'END_DEBRIEF_TRIGGER' })
+      setAutoDebriefTriggered(true)
+      setPendingAutoDebrief(false)
+      if (pendingAutoDebriefTimerRef.current) window.clearTimeout(pendingAutoDebriefTimerRef.current)
+      pendingAutoDebriefTimerRef.current = null
+      generateFinalReportNow(messages)
       setInput('')
       return
     }
@@ -303,7 +271,7 @@ export default function ChatPage() {
         .join('')
         .trim() ?? ''
 
-    if (!debriefStarted && isLowClarityMessage(input, { lastAssistantText })) {
+    if (isLowClarityMessage(input, { lastAssistantText })) {
       const uidUser = newId()
       const userText = input
       setInput('')
@@ -323,42 +291,24 @@ export default function ChatPage() {
       setClarityStrikes((prev) => {
         const strike = prev + 1
 
-        if (strike >= 4) {
-          setClarityPopup({
-            open: true,
-            level: 'ended',
-            title: 'SESSION ENDED',
-            body: `You repeatedly sent unclear messages. The session is ending now and your final report will be generated based on what you wrote so far.`,
-          })
-          // Go straight to final report (no END_DEBRIEF_TRIGGER)
-          generateFinalReportNow(nextMessages)
-          return strike
-        }
-
-        if (strike === 3) {
-          setClarityPopup({
-            open: true,
-            level: 'final',
-            title: `FINAL WARNING (3/3)`,
-            body: `Your message is still unclear. Next unclear message will end the session and generate your final report.\n\nWrite 1–2 sentences with: (a) what you want, (b) why, (c) what you can offer.`,
-          })
-          return strike
-        }
-
         setClarityPopup({
           open: true,
           level: 'warn',
-          title: `WARNING (${strike}/3)`,
-          body: strike === 1
-            ? `Your message is too unclear to evaluate.\n\nWrite a complete sentence (1–2 lines) with a specific request or counterproposal.`
-            : `Still unclear.\n\nBe specific: (a) what you want, (b) why, (c) what you can offer in return.`,
+          title: `WARNING (${strike})`,
+          body:
+            strike === 1
+              ? `Your message is too unclear to evaluate.\n\nWrite a complete sentence (1–2 lines) with a specific request or counterproposal.`
+              : `Still unclear.\n\nBe specific: (a) what you want, (b) why, (c) what you can offer in return.`,
         })
         return strike
       })
       return
     }
 
-    if (isGibberishOrTroll(input, { debriefMode: debriefStarted })) {
+    // Reset clarity warnings when user sends a usable message.
+    if (clarityStrikes !== 0) setClarityStrikes(0)
+
+    if (isGibberishOrTroll(input, { debriefMode: false })) {
       const strike = trollStrikes + 1
       setTrollStrikes(strike)
       const uidUser = newId()
@@ -386,7 +336,6 @@ export default function ChatPage() {
           },
         ]
         setMessages(nextMessages)
-        setDebriefStarted(true)
         generateFinalReportNow(nextMessages)
         return
       }
@@ -1109,12 +1058,15 @@ export default function ChatPage() {
               <DropdownMenuItem
                 variant="destructive"
                 onClick={() => {
-                  setDebriefStarted(true)
-                  sendMessage({ text: 'END_DEBRIEF_TRIGGER' })
+                  setAutoDebriefTriggered(true)
+                  setPendingAutoDebrief(false)
+                  if (pendingAutoDebriefTimerRef.current) window.clearTimeout(pendingAutoDebriefTimerRef.current)
+                  pendingAutoDebriefTimerRef.current = null
+                  generateFinalReportNow(messages)
                 }}
               >
                 <Flag className="h-4 w-4" />
-                End Negotiation & Start Debrief
+                End Negotiation & Generate Final Report
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1312,8 +1264,11 @@ export default function ChatPage() {
               size="sm"
               className="flex items-center gap-1.5 text-xs font-medium text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive bg-background/60 shadow-sm"
               onClick={() => {
-                setDebriefStarted(true)
-                sendMessage({ text: 'END_DEBRIEF_TRIGGER' })
+                setAutoDebriefTriggered(true)
+                setPendingAutoDebrief(false)
+                if (pendingAutoDebriefTimerRef.current) window.clearTimeout(pendingAutoDebriefTimerRef.current)
+                pendingAutoDebriefTimerRef.current = null
+                generateFinalReportNow(messages)
               }}
             >
               <Flag className="h-3.5 w-3.5" />
@@ -1349,55 +1304,6 @@ export default function ChatPage() {
               <span className="sr-only">Send message</span>
             </Button>
           </form>
-          {debriefStarted && !isLoading && (
-            <div className="mx-auto mt-3 max-w-3xl flex flex-col items-center gap-1">
-              <div className="flex flex-col sm:flex-row items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2 font-medium"
-                  onClick={downloadFinalReport}
-                  disabled={!finalReportHtml || finalReportGenerating}
-                >
-                  <FileDown className="h-4 w-4" />
-                  Download Final Report
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2 font-medium"
-                  onClick={() => {
-                    if (!finalReportHtml) return
-                    setFinalReportSessionAt((t) => t ?? new Date().toLocaleString())
-                    setShowFinalReport(true)
-                  }}
-                  disabled={!finalReportHtml}
-                >
-                  <FileDown className="h-4 w-4" />
-                  View Final Report
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2 font-medium"
-                  onClick={downloadTranscript}
-                >
-                  <Download className="h-4 w-4" />
-                  Download Transcript (.txt)
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {finalReportGenerating
-                  ? 'Generating your final report…'
-                  : finalReportHtml
-                    ? 'The final report is a styled HTML file you can print/save as PDF.'
-                    : 'Finish the debrief (3 answers) or end the session to generate the final report.'}
-              </p>
-            </div>
-          )}
           <p className="mx-auto mt-2 max-w-3xl text-center text-xs text-muted-foreground">
             AI may produce inaccurate information. Consider checking important facts.
           </p>
