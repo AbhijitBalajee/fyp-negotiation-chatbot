@@ -46,6 +46,10 @@ Justification: [2–3 examples per classification]
 AGGRESSION IMPACT ANALYSIS
 Level reached: [None / 1 / 2 / 3]
 Impact on scoring: [Explain caps/impacts if any]
+Framework (use to interpret the transcript):
+- Level 1: Professor stipend ceiling capped at \$4,000/month or any lower figure already offered in the conversation (whichever is more restrictive).
+- Level 2: Stipend ceiling capped at \$3,500/month (same “lower of prior offer” rule); no recommendation letter.
+- Level 3: Negotiation terminated (relationship damage irreversible for this session).
 Specific moments: [Cite examples]
 
 1. INTERESTS (n/20)
